@@ -1,2 +1,3 @@
 # Omni-Server
-Server for Omni
+
+Welcome to the Server for Omni
