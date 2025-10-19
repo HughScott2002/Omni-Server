@@ -1,31 +1,40 @@
 package utils
 
 import (
+	"log"
 	"omni/fraud-detection/src/models"
 	"time"
 )
 
-// AssessRisk performs a simple risk assessment on a transaction
-// For now, this always approves transactions with a low risk score
-// In production, this would use ML models, rule engines, and historical data
+// AssessRisk performs real-time rules-based risk assessment on a transaction
 func AssessRisk(req models.RiskAssessmentRequest) models.RiskAssessmentResponse {
-	// For now, everything is low risk and approved
-	// Future enhancements:
-	// - Check transaction velocity (how many transactions in last hour/day)
-	// - Check unusual amounts for this user
-	// - Check geographic location patterns
-	// - ML model predictions
-	// - Blacklist/whitelist checks
-	// - AML screening
+	// Calculate risk score using rules engine
+	riskScore, riskLevel, reasons := CalculateRiskScore(req)
 
-	riskScore := 5.0 // Very low risk (0-100 scale)
-	reasons := []string{"Transaction within normal parameters"}
+	// Determine decision based on risk score
+	decision := DetermineDecision(riskScore, riskLevel)
+
+	// Log assessment
+	log.Printf("Risk Assessment - TxID: %s, Score: %.2f, Level: %s, Decision: %s, Reasons: %d",
+		req.TransactionID, riskScore, riskLevel, decision, len(reasons))
+
+	// Store transaction in history for velocity checks (only if not declined immediately)
+	if decision != models.DecisionDecline {
+		store := GetTransactionStore()
+		store.AddTransaction(TransactionHistory{
+			TransactionID:     req.TransactionID,
+			SenderAccountID:   req.SenderAccountID,
+			ReceiverAccountID: req.ReceiverAccountID,
+			Amount:            req.Amount,
+			Timestamp:         time.Now(),
+		})
+	}
 
 	return models.RiskAssessmentResponse{
 		TransactionID: req.TransactionID,
 		RiskScore:     riskScore,
-		RiskLevel:     models.RiskLevelLow,
-		Decision:      models.DecisionApprove,
+		RiskLevel:     riskLevel,
+		Decision:      decision,
 		Reasons:       reasons,
 		AssessedAt:    time.Now(),
 	}
