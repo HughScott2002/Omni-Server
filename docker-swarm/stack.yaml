@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   nginx:
-    image: ${DOCKER_REGISTRY}/nginx:${VERSION:-latest}
+    image: nginx:1.27.2-alpine
     deploy:
       replicas: 2
       update_config:
