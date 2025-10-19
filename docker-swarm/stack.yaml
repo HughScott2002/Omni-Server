@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: ${DOCKER_REGISTRY}/nginx:${VERSION:-latest}
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    ports:
+      - "80:80"
+    configs:
+      - source: nginx_config
+        target: /etc/nginx/nginx.conf
+    networks:
+      - omni-network
+
+  user-service:
+    image: ${DOCKER_REGISTRY}/user-service:${VERSION:-latest}
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - MODE=${MODE:-db}
+      - USER_REDIS_PASSWORD=${USER_REDIS_PASSWORD}
+      - USER_REDIS_PORT=6379
+      - USER_SERVICE_INTERNAL_PORT=8080
+    networks:
+      - omni-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:8080/api/users/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  user-redis:
+    image: redis:alpine
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    command: redis-server --appendonly yes --requirepass ${USER_REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - omni-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  omni-network:
+    driver: overlay
+    attachable: true
+
+volumes:
+  redis_data:
+    driver: local
+
+configs:
+  nginx_config:
+    file: ../0-nginx/nginx-swarm.conf

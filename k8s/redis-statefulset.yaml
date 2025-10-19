@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-redis
+  namespace: omni-server
+spec:
+  selector:
+    app: user-redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+  clusterIP: None  # Headless service for StatefulSet
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: user-redis
+  namespace: omni-server
+spec:
+  serviceName: user-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-redis
+  template:
+    metadata:
+      labels:
+        app: user-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        command:
+          - redis-server
+          - --appendonly
+          - "yes"
+          - --requirepass
+          - $(USER_REDIS_PASSWORD)
+        env:
+        - name: USER_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: omni-secrets
+              key: USER_REDIS_PASSWORD
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
