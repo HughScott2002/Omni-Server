@@ -135,6 +135,50 @@ services:
       - KAFKA_RETRY_ATTEMPTS=5
       - KAFKA_RETRY_DELAY=2
 
+  transaction-service:
+    container_name: transaction-service
+    build: ./4-transactions
+    ports:
+      - "${TRANSACTION_SERVICE_PORT}:${TRANSACTION_SERVICE_INTERNAL_PORT}"
+    depends_on:
+      broker:
+        condition: service_healthy
+      transaction-redis:
+        condition: service_started
+      fraud-detection-service:
+        condition: service_started
+    restart: on-failure:3
+    environment:
+      - REDIS_HOST=transaction-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${TRANSACTION_REDIS_PASSWORD}
+      - ENVIRONMENT=${ENVIRONMENT}
+      - MODE=${MODE}
+      - PORT=${TRANSACTION_SERVICE_INTERNAL_PORT}
+      - USER_SERVICE_URL=http://user-service:8080
+      - WALLET_SERVICE_URL=http://wallet-service:8080
+      - FRAUD_DETECTION_URL=http://fraud-detection-service:8085
+
+  transaction-redis:
+    image: redis:alpine
+    container_name: transaction-redis
+    ports:
+      - "${TRANSACTION_REDIS_PORT}:6379"
+    volumes:
+      - transaction_redis_data:/data
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${TRANSACTION_REDIS_PASSWORD}
+
+  fraud-detection-service:
+    container_name: fraud-detection-service
+    build: ./5-fraud-detection
+    ports:
+      - "${FRAUD_DETECTION_SERVICE_PORT}:${FRAUD_DETECTION_SERVICE_INTERNAL_PORT}"
+    restart: on-failure:3
+    environment:
+      - PORT=${FRAUD_DETECTION_SERVICE_INTERNAL_PORT}
+      - ENVIRONMENT=${ENVIRONMENT}
+
   mailhog:
     image: mailhog/mailhog:latest
     container_name: mailhog
@@ -146,4 +190,5 @@ services:
 volumes:
   wallet_redis_data:
   user_redis_data:
+  transaction_redis_data:
 
