@@ -84,7 +84,7 @@ services:
       - REDIS_HOST=notification-redis
       - REDIS_PORT=6379
     depends_on:
-      - mailhog
+      # - mailhog
       - broker
       - notification-redis
     # networks:
@@ -179,13 +179,13 @@ services:
       - PORT=${FRAUD_DETECTION_SERVICE_INTERNAL_PORT}
       - ENVIRONMENT=${ENVIRONMENT}
 
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: mailhog
-    ports:
-      - "${TESTING_NOTIFICATION_SERVICE_WEB_UI}:8025"  # Web UI
-      - "${TESTING_NOTIFICATION_SERVICE_SMTP_PORT}:1025"  # SMTP
-    restart: always
+  # mailhog:
+  #   image: mailhog/mailhog:latest
+  #   container_name: mailhog
+  #   ports:
+  #     - "${TESTING_NOTIFICATION_SERVICE_WEB_UI}:8025"  # Web UI
+  #     - "${TESTING_NOTIFICATION_SERVICE_SMTP_PORT}:1025"  # SMTP
+  #   restart: always
 
 volumes:
   wallet_redis_data:

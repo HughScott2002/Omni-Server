@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy go mod and sum files
 COPY go.mod go.sum ./
 
-# Download all dependencies
-RUN go mod download
+# Download all dependencies with retry
+RUN go mod download || go mod download || go mod download
 
 # Copy the source code into the container
 COPY src/ ./src/
