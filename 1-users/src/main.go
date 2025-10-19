@@ -8,6 +8,7 @@ import (
 	"omni/src/db"
 	"omni/src/server"
 	"omni/src/server/handlers"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -59,7 +60,6 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", r))
 
 }
-
 func HandlerPlaceHolder(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte{})
 }
