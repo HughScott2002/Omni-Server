@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "fastapiservertest"
+version = "0.1.0"
+description = ""
+authors = ["Hugh Scott <hughscott2002@yahoo.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.8"
+uvicorn = {extras = ["standard"], version = "^0.34.0"}
+pydantic = "^2.10.6"
+kafka-python = "^2.0.2"
+redis = "^5.0.1"
+websockets = "^13.1"
+python-dotenv = "^1.0.0"
+python-snappy = "^0.7.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
