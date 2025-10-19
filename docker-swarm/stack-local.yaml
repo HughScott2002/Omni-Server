@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   nginx:
-    image: nginx:1.27.2-alpine  # Use official image for local testing
+    image: nginx:1.27.2-alpine
     deploy:
-      replicas: 2
+      replicas: 1
       update_config:
         parallelism: 1
         delay: 10s
@@ -29,10 +29,76 @@ services:
     networks:
       - omni-network
 
+  broker:
+    image: apache/kafka:3.7.0
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://broker:9092
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@broker:9093
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_NUM_PARTITIONS=3
+    networks:
+      - omni-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server broker:9092 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  user-redis:
+    image: redis:alpine
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    command: redis-server --appendonly yes --requirepass sadasdasdasddsfwerweraewrsd34
+    volumes:
+      - user_redis_data:/data
+    networks:
+      - omni-network
+
   user-service:
     image: localhost:5000/user-service:latest
     deploy:
-      replicas: 3
+      replicas: 2
       update_config:
         parallelism: 1
         delay: 10s
@@ -64,7 +130,7 @@ services:
       retries: 3
       start_period: 40s
 
-  user-redis:
+  wallet-redis:
     image: redis:alpine
     deploy:
       replicas: 1
@@ -83,60 +149,175 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-    command: redis-server --appendonly yes --requirepass sadasdasdasddsfwerweraewrsd34
+    command: redis-server --appendonly yes --requirepass werwaerq3erq34rq4werwerwrqer
     volumes:
-      - redis_data:/data
+      - wallet_redis_data:/data
     networks:
       - omni-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
-  # Kafka broker - commented out for now due to DNS issues in Swarm
-  # Uncomment and configure when needed for production
-  # broker:
-  #   image: apache/kafka:3.7.0
-  #   deploy:
-  #     replicas: 1
-  #     placement:
-  #       constraints:
-  #         - node.role == manager
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 5s
-  #       max_attempts: 3
-  #       window: 120s
-  #     resources:
-  #       limits:
-  #         cpus: '1'
-  #         memory: 512M
-  #       reservations:
-  #         cpus: '0.5'
-  #         memory: 256M
-  #   environment:
-  #     - KAFKA_NODE_ID=1
-  #     - KAFKA_PROCESS_ROLES=broker,controller
-  #     - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-  #     - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://broker:9092
-  #     - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-  #     - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-  #     - KAFKA_CONTROLLER_QUORUM_VOTERS=1@broker:9093
-  #     - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-  #     - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-  #     - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-  #     - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-  #     - KAFKA_NUM_PARTITIONS=3
-  #   networks:
-  #     - omni-network
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server broker:9092"]
-  #     interval: 10s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 15s
+  wallet-service:
+    image: localhost:5000/wallet-service:latest
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+    environment:
+      - ENVIRONMENT=local
+      - MODE=memcached
+      - WALLET_REDIS_PASSWORD=werwaerq3erq34rq4werwerwrqer
+      - WALLET_REDIS_PORT=6379
+      - WALLET_SERVICE_INTERNAL_PORT=8080
+      - KAFKA_RETRY_ATTEMPTS=5
+      - KAFKA_RETRY_DELAY=2
+    networks:
+      - omni-network
+
+  notification-redis:
+    image: redis:alpine
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    networks:
+      - omni-network
+
+  notification-service:
+    image: localhost:5000/notification-service:latest
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    environment:
+      - ENV=development
+      - PORT=8080
+      - NOTIFICATION_SERVICE_KAFKA_BOOTSTRAP_SERVERS=broker:9092
+      - NOTIFICATION_SERVICE_KAFKA_TOPIC=notifications
+      - REDIS_HOST=notification-redis
+      - REDIS_PORT=6379
+    networks:
+      - omni-network
+
+  transaction-redis:
+    image: redis:alpine
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    command: redis-server --appendonly yes --requirepass transaction_redis_pass_2024
+    volumes:
+      - transaction_redis_data:/data
+    networks:
+      - omni-network
+
+  transaction-service:
+    image: localhost:5000/transaction-service:latest
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+    environment:
+      - ENVIRONMENT=local
+      - MODE=memcached
+      - PORT=8083
+      - REDIS_HOST=transaction-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=transaction_redis_pass_2024
+      - USER_SERVICE_URL=http://user-service:8080
+      - WALLET_SERVICE_URL=http://wallet-service:8080
+      - FRAUD_DETECTION_URL=http://fraud-detection-service:8085
+    networks:
+      - omni-network
+
+  fraud-detection-service:
+    image: localhost:5000/fraud-detection-service:latest
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    environment:
+      - ENVIRONMENT=local
+      - PORT=8085
+    networks:
+      - omni-network
 
 networks:
   omni-network:
@@ -144,7 +325,11 @@ networks:
     attachable: true
 
 volumes:
-  redis_data:
+  user_redis_data:
+    driver: local
+  wallet_redis_data:
+    driver: local
+  transaction_redis_data:
     driver: local
 
 configs:

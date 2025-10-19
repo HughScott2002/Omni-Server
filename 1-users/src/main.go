@@ -38,11 +38,11 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Allow all origins for development
+		AllowedOrigins:   []string{"https://omniui-plum.vercel.app/", "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"}, // Allow common dev origins
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false, // Must be false when using wildcard origin
+		AllowCredentials: true, // Required for credentials: "include"
 		MaxAge:           300,
 	}))
 
