@@ -1,0 +1,97 @@
+
+
+name: Build and Deploy to Docker Swarm
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: registry.digitalocean.com
+  IMAGE_NAME: user-service
+
+jobs:
+  build-and-deploy:
+    name: Build, Push, and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # Install doctl (DigitalOcean CLI)
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+    # Login to DigitalOcean Container Registry
+    - name: Log in to DigitalOcean Container Registry
+      run: doctl registry login --expiry-seconds 1200
+
+    # Build and push Docker image
+    - name: Build and push user-service
+      uses: docker/build-push-action@v5
+      with:
+        context: ./1-users
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          ${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:latest
+        cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:buildcache
+        cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+    # Deploy to Docker Swarm (only on push to main)
+    - name: Deploy to Docker Swarm
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      env:
+        SWARM_MANAGER_HOST: ${{ secrets.SWARM_MANAGER_HOST }}
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      run: |
+        # Setup SSH
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H $SWARM_MANAGER_HOST >> ~/.ssh/known_hosts
+
+        # Create deployment directory on manager
+        ssh root@$SWARM_MANAGER_HOST "mkdir -p /root/omni-server/docker-swarm"
+        ssh root@$SWARM_MANAGER_HOST "mkdir -p /root/omni-server/0-nginx"
+
+        # Copy stack files
+        scp docker-swarm/stack.yaml root@$SWARM_MANAGER_HOST:/root/omni-server/docker-swarm/
+        scp 0-nginx/nginx.conf root@$SWARM_MANAGER_HOST:/root/omni-server/0-nginx/
+
+        # Set environment variables and deploy
+        ssh root@$SWARM_MANAGER_HOST << 'ENDSSH'
+          export DOCKER_REGISTRY="${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}"
+          export VERSION="${{ github.sha }}"
+          export ENVIRONMENT="production"
+          export MODE="db"
+          export USER_REDIS_PASSWORD="${{ secrets.USER_REDIS_PASSWORD }}"
+
+          cd /root/omni-server
+          docker stack deploy -c docker-swarm/stack.yaml omni-server
+        ENDSSH
+
+        # Wait a bit for deployment to start
+        sleep 10
+
+        # Show deployment status
+        ssh root@$SWARM_MANAGER_HOST "docker stack services omni-server"
+
+    - name: Deployment summary
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "✅ Deployment complete!"
+        echo "Image: ${{ env.REGISTRY }}/${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        echo ""
+        echo "Check status:"
+        echo "  ssh root@\$SWARM_MANAGER_HOST 'docker stack services omni-server'"

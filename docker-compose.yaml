@@ -1,0 +1,65 @@
+services:
+   broker:
+    image: apache/kafka:3.7.0
+    container_name: kafka
+    # volumes:
+    #   - kafka_data:/opt/kafka/data
+    #   - kafka_logs:/opt/kafka/logs
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server broker:9092",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    environment:
+      KAFKA_NODE_ID: ${KAFKA_NODE_ID}
+      KAFKA_PROCESS_ROLES: ${KAFKA_PROCESS_ROLES}
+      KAFKA_LISTENERS: ${KAFKA_LISTENERS}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_CONTROLLER_LISTENER_NAMES: ${KAFKA_CONTROLLER_LISTENER_NAMES}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
+      KAFKA_CONTROLLER_QUORUM_VOTERS: ${KAFKA_CONTROLLER_QUORUM_VOTERS}
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR}
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR}
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: ${KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS}
+      KAFKA_NUM_PARTITIONS: ${KAFKA_NUM_PARTITIONS}
+      # KAFKA_LOG_DIRS: "/opt/kafka/logs"
+      # KAFKA_DATA_DIRS: "/opt/kafka/data"
+
+  nginx:
+    image: nginx:1.27.2-alpine
+    container_name: nginx
+    ports:
+      - "${NGINX_PORT}:80"
+    volumes:
+      - ./0-nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+   
+  user-service:
+    container_name: user-service
+    build: ./1-users
+    ports:
+      - "${USER_SERVICE_PORT}:${USER_SERVICE_INTERNAL_PORT}"
+    restart: always
+    environment:
+      - USER_REDIS_PASSWORD=${USER_REDIS_PASSWORD}
+      - USER_REDIS_PORT=${USER_REDIS_PORT}
+      - ENVIRONMENT=${ENVIRONMENT}
+      - MODE=${MODE}
+  user-redis:
+    image: redis:alpine
+    container_name: user-redis
+    ports:
+      - "${USER_REDIS_PORT}:6379"
+    volumes:
+      - user_redis_data:/data
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${USER_REDIS_PASSWORD}
+
+volumes:
+  user_redis_data:
+
