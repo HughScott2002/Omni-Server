@@ -25,6 +25,7 @@ help:
 	@echo "  make swarm-scale    - Scale user-service to 5 replicas"
 	@echo "  make swarm-update   - Update services with latest images"
 	@echo "  make swarm-clean    - Remove swarm stack and leave swarm"
+	@echo "  make swarm-prune    - Clean up unused Docker resources"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test           - Test the running services"
@@ -147,6 +148,15 @@ swarm-clean:
 	@echo "Leaving swarm..."
 	-docker swarm leave --force
 	@echo "Cleanup complete!"
+
+swarm-prune:
+	@echo "Cleaning up Docker resources..."
+	@echo "This will remove stopped containers, unused images, and build cache."
+	docker system prune -f
+	docker builder prune -f
+	@echo "Cleanup complete!"
+	@echo ""
+	@docker system df
 
 # ================================================
 # Testing
