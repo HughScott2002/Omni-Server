@@ -67,7 +67,7 @@ jobs:
 
         # Copy stack files
         scp docker-swarm/stack.yaml root@$SWARM_MANAGER_HOST:/root/omni-server/docker-swarm/
-        scp 0-nginx/nginx.conf root@$SWARM_MANAGER_HOST:/root/omni-server/0-nginx/
+        scp 0-nginx/nginx-swarm.conf root@$SWARM_MANAGER_HOST:/root/omni-server/0-nginx/
 
         # Set environment variables and deploy
         ssh root@$SWARM_MANAGER_HOST << 'ENDSSH'
