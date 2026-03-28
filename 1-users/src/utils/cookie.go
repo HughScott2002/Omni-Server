@@ -4,7 +4,26 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 )
+
+func getCookieDomain() string {
+	domain := os.Getenv("COOKIE_DOMAIN")
+	if domain == "" {
+		domain = "localhost"
+	}
+	return domain
+}
+
+// ExtractBearerToken pulls a token from the Authorization header.
+// Returns empty string if not present.
+func ExtractBearerToken(r *http.Request) string {
+	auth := r.Header.Get("Authorization")
+	if strings.HasPrefix(auth, "Bearer ") {
+		return strings.TrimPrefix(auth, "Bearer ")
+	}
+	return ""
+}
 
 // func setCookie(w http.ResponseWriter, name, value string, maxAge int) {
 // 	isSecure := os.Getenv("ENVIRONMENT") == "production" || os.Getenv("ENVIRONMENT") == "prod"
@@ -31,6 +50,6 @@ func SetCookie(w http.ResponseWriter, name, value string, maxAge int) {
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/", // Set path to root for all cookies
 		MaxAge:   maxAge,
-		Domain:   "localhost", // Set this to your domain in production
+		Domain:   getCookieDomain(),
 	})
 }

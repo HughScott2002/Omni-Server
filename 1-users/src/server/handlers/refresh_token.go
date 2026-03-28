@@ -10,15 +10,21 @@ import (
 )
 
 func HandlerRefreshToken(w http.ResponseWriter, r *http.Request) {
-	// Get the refresh token from the cookie
-	refreshTokenCookie, err := r.Cookie("refresh_token")
-	if err != nil {
-		http.Error(w, "Refresh token not found", http.StatusUnauthorized)
-		return
+	// Try Authorization header first (mobile), then fall back to cookie (web)
+	var refreshTokenValue string
+	if bearer := utils.ExtractBearerToken(r); bearer != "" {
+		refreshTokenValue = bearer
+	} else {
+		refreshTokenCookie, cookieErr := r.Cookie("refresh_token")
+		if cookieErr != nil {
+			http.Error(w, "Refresh token not found", http.StatusUnauthorized)
+			return
+		}
+		refreshTokenValue = refreshTokenCookie.Value
 	}
 
 	// Get the refresh token info from the database
-	tokenInfo, err := db.GetRefreshToken(refreshTokenCookie.Value)
+	tokenInfo, err := db.GetRefreshToken(refreshTokenValue)
 	if err != nil {
 		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
 		return
@@ -46,7 +52,7 @@ func HandlerRefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the refresh token in the database
-	err = db.DeleteRefreshToken(refreshTokenCookie.Value)
+	err = db.DeleteRefreshToken(refreshTokenValue)
 	if err != nil {
 		http.Error(w, "Error deleting old refresh token", http.StatusInternalServerError)
 		return
@@ -66,7 +72,7 @@ func HandlerRefreshToken(w http.ResponseWriter, r *http.Request) {
 	sessions, err := db.GetUserSessions(user.Email)
 	if err == nil {
 		for _, session := range sessions {
-			if session.Token == refreshTokenCookie.Value {
+			if session.Token == refreshTokenValue {
 				db.UpdateSessionLastLogin(session.ID)
 				break
 			}
@@ -104,6 +110,10 @@ func HandlerRefreshToken(w http.ResponseWriter, r *http.Request) {
 			"firstName": user.FirstName,
 			"lastName":  user.LastName,
 			"kycStatus": user.KYCStatus.String(),
+		},
+		"tokens": map[string]string{
+			"accessToken":  newAccessToken,
+			"refreshToken": newRefreshToken,
 		},
 	})
 }

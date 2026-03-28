@@ -166,13 +166,15 @@ func HandlerRegister(w http.ResponseWriter, r *http.Request) {
 			"omniTag":   user.OmniTag,
 			"kycStatus": user.KYCStatus.String(),
 		},
+		"tokens": map[string]string{
+			"accessToken":  accessToken,
+			"refreshToken": refreshToken,
+		},
 		"session": map[string]interface{}{
 			"id":         session.ID,
 			"browser":    session.Browser,
 			"ipAddress":  session.IPAddress,
 			"deviceInfo": session.DeviceInfo,
-			// "refreshToken": refreshToken,
-			// "accessToken":  accessToken,
 		},
 	}
 

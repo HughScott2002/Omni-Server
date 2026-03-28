@@ -74,15 +74,16 @@ func HandlerLogin(w http.ResponseWriter, r *http.Request) {
 			"firstName": storedUser.FirstName,
 			"lastName":  storedUser.LastName,
 			"kycStatus": storedUser.KYCStatus.String(),
-			// "account":   storedUser.Status.String(),
+		},
+		"tokens": map[string]string{
+			"accessToken":  accessToken,
+			"refreshToken": refreshToken,
 		},
 		"session": map[string]interface{}{
 			"id":         session.ID,
 			"browser":    session.Browser,
 			"ipAddress":  session.IPAddress,
 			"deviceInfo": session.DeviceInfo,
-			// "refreshToken": refreshToken,
-			// "accessToken":  accessToken,
 		},
 	}
 

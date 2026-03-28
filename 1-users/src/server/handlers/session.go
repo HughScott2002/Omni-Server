@@ -90,17 +90,25 @@ func HandlerListActiveSessions(w http.ResponseWriter, r *http.Request) {
 
 func HandlerCheckSession(w http.ResponseWriter, r *http.Request) {
 	var user *models.User
-	var err error
 
 	log.Println("Starting session check")
 
-	// Try to get the access token
-	accessTokenCookie, err := r.Cookie("access_token")
-	if err != nil {
-		log.Println("Access token not found:", err)
+	// Try Authorization header first (mobile), then fall back to cookie (web)
+	accessTokenStr := utils.ExtractBearerToken(r)
+	if accessTokenStr == "" {
+		accessTokenCookie, cookieErr := r.Cookie("access_token")
+		if cookieErr != nil {
+			log.Println("Access token not found:", cookieErr)
+		} else {
+			accessTokenStr = accessTokenCookie.Value
+		}
+	}
+
+	if accessTokenStr == "" {
+		log.Println("No access token available")
 	} else {
 		// Access token exists, try to validate it
-		claims, err := utils.ValidateAccessToken(accessTokenCookie.Value)
+		claims, err := utils.ValidateAccessToken(accessTokenStr)
 		if err != nil {
 			log.Println("Access token validation failed:", err)
 		} else {
@@ -117,17 +125,33 @@ func HandlerCheckSession(w http.ResponseWriter, r *http.Request) {
 	// If we don't have a valid user at this point, try the refresh token
 	if user == nil {
 		log.Println("Attempting to use refresh token")
-		refreshTokenCookie, err := r.Cookie("refresh_token")
-		if err != nil {
-			log.Println("Refresh token not found:", err)
-			http.Error(w, "No valid session found", http.StatusUnauthorized)
-			return
+		// Check request body for refresh token (mobile), then cookie (web)
+		var refreshTokenValue string
+		var bodyReq struct {
+			RefreshToken string `json:"refreshToken"`
+		}
+		// Try reading from body without consuming it for mobile clients
+		if r.Body != nil {
+			bodyBytes, _ := io.ReadAll(r.Body)
+			if len(bodyBytes) > 0 {
+				json.Unmarshal(bodyBytes, &bodyReq)
+				refreshTokenValue = bodyReq.RefreshToken
+			}
+		}
+		if refreshTokenValue == "" {
+			refreshTokenCookie, cookieErr := r.Cookie("refresh_token")
+			if cookieErr != nil {
+				log.Println("Refresh token not found:", cookieErr)
+				http.Error(w, "No valid session found", http.StatusUnauthorized)
+				return
+			}
+			refreshTokenValue = refreshTokenCookie.Value
 		}
 
-		log.Printf("Refresh token found: %s", refreshTokenCookie.Value)
+		log.Printf("Refresh token found: %s", refreshTokenValue)
 
 		// Get the refresh token info
-		tokenInfo, err := db.GetRefreshToken(refreshTokenCookie.Value)
+		tokenInfo, err := db.GetRefreshToken(refreshTokenValue)
 		if err != nil {
 			log.Println("Invalid refresh token:", err)
 			http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
@@ -174,7 +198,7 @@ func HandlerCheckSession(w http.ResponseWriter, r *http.Request) {
 		sessions, err := db.GetUserSessions(user.Email)
 		if err == nil {
 			for _, session := range sessions {
-				if session.Token == refreshTokenCookie.Value {
+				if session.Token == refreshTokenValue {
 					db.UpdateSessionLastLogin(session.ID)
 					log.Println("Session last login time updated")
 					break

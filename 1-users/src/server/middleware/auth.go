@@ -12,15 +12,19 @@ import (
 // and adds the user's account ID to the request context
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Try to get the access token from cookies
-		accessTokenCookie, err := r.Cookie("access_token")
-		if err != nil {
-			http.Error(w, "Unauthorized: No access token", http.StatusUnauthorized)
-			return
+		// Try Authorization header first (mobile), then fall back to cookies (web)
+		tokenStr := utils.ExtractBearerToken(r)
+		if tokenStr == "" {
+			accessTokenCookie, err := r.Cookie("access_token")
+			if err != nil {
+				http.Error(w, "Unauthorized: No access token", http.StatusUnauthorized)
+				return
+			}
+			tokenStr = accessTokenCookie.Value
 		}
 
 		// Validate the access token
-		claims, err := utils.ValidateAccessToken(accessTokenCookie.Value)
+		claims, err := utils.ValidateAccessToken(tokenStr)
 		if err != nil {
 			// Access token is invalid or expired
 			http.Error(w, "Unauthorized: Invalid or expired access token", http.StatusUnauthorized)
