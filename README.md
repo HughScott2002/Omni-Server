@@ -30,15 +30,6 @@
 
 Omni-Server is microservices backend for wallet-style product. It is built to show real backend system design, not single CRUD app. Go services handle users, wallets, transactions, and fraud detection. FastAPI service handles notification storage and WebSocket fanout. Nginx fronts public routes, Kafka carries domain events, Redis backs per-service state.
 
-This repo is strongest as hiring signal for:
-
-- gateway + service routing
-- sync HTTP calls between services
-- async event-driven flows with Kafka
-- real-time notification delivery
-- containerized local dev and Swarm-style deployment
-- fraud scoring in transaction path
-
 ## Problem
 
 Digital payments backend gets hard fast. Auth, wallets, transfers, fraud checks, notifications, session state, event delivery, local orchestration all need to work together. Single service gets messy fast.
@@ -177,7 +168,7 @@ curl http://localhost:8085/health
 - gateway pattern with clean service boundaries
 - explicit transaction risk scoring path
 - Docker Compose for dev, Swarm path for production-like deployment
-- room to improve, which makes engineering judgment visible
+- room to improve and evolve
 
 ## Status
 
