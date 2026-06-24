@@ -254,8 +254,8 @@ See `FRAUD_DETECTION_RULES.md` for detailed instructions.
 ## Documentation
 
 - **Rules Reference**: [FRAUD_DETECTION_RULES.md](FRAUD_DETECTION_RULES.md)
-- **Transaction Flow**: [../TRANSACTION_FLOW.md](../TRANSACTION_FLOW.md)
-- **Deployment**: [../DEPLOYMENT.md](../DEPLOYMENT.md)
+- **System Overview**: [../README.md](../README.md)
+- **Swarm Deployment**: [../docker-swarm/README.md](../docker-swarm/README.md)
 
 ## Future Enhancements
 

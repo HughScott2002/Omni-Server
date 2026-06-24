@@ -157,6 +157,14 @@ Add these secrets in your GitHub repo (Settings → Secrets and variables → Ac
    - A strong password for Redis
    - Generate with: `openssl rand -base64 32`
 
+6. **JWT_SECRET**
+   - A strong secret for signing user-service JWTs
+   - Generate with: `openssl rand -base64 32`
+
+7. **COOKIE_DOMAIN**
+   - Cookie domain for deployed frontend and backend
+   - Example: `yourdomain.com`
+
 ### Step 6: Test Locally First
 
 Before deploying to production, test locally:

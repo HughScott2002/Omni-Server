@@ -403,4 +403,4 @@ All risk assessments are logged with:
 For questions or issues:
 - Check logs: `docker service logs omni-server_fraud-detection-service`
 - Review this documentation
-- See [TRANSACTION_FLOW.md](../TRANSACTION_FLOW.md) for integration details
+- See [../README.md](../README.md) for current integration overview

@@ -120,6 +120,8 @@ services:
       - MODE=${MODE:-db}
       - USER_REDIS_PASSWORD=${USER_REDIS_PASSWORD}
       - USER_REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN}
       - USER_SERVICE_INTERNAL_PORT=8080
     networks:
       - omni-network

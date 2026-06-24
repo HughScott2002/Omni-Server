@@ -120,6 +120,8 @@ services:
       - MODE=memcached
       - USER_REDIS_PASSWORD=sadasdasdasddsfwerweraewrsd34
       - USER_REDIS_PORT=6379
+      - JWT_SECRET=change-me-local-dev
+      - COOKIE_DOMAIN=localhost
       - USER_SERVICE_INTERNAL_PORT=8080
     networks:
       - omni-network

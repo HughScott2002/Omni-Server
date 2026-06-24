@@ -63,6 +63,8 @@ services:
     environment:
       - USER_REDIS_PASSWORD=${USER_REDIS_PASSWORD}
       - USER_REDIS_PORT=${USER_REDIS_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN}
       - ENVIRONMENT=${ENVIRONMENT}
       - MODE=${MODE}
 
@@ -191,4 +193,3 @@ volumes:
   wallet_redis_data:
   user_redis_data:
   transaction_redis_data:
-

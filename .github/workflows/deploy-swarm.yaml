@@ -76,6 +76,8 @@ jobs:
           export ENVIRONMENT="production"
           export MODE="db"
           export USER_REDIS_PASSWORD="${{ secrets.USER_REDIS_PASSWORD }}"
+          export JWT_SECRET="${{ secrets.JWT_SECRET }}"
+          export COOKIE_DOMAIN="${{ secrets.COOKIE_DOMAIN }}"
 
           cd /root/omni-server
           docker stack deploy -c docker-swarm/stack.yaml omni-server

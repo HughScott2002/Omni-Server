@@ -14,6 +14,10 @@
 - Cookie domain reads from `COOKIE_DOMAIN` environment variable (falls back to `localhost`)
 - Auth middleware checks Authorization header first, then cookies
 
+### Documentation
+- Rewrote root `README.md` for Omni-Server itself, with microservices architecture, local setup, current status, and experimental/in-development framing
+- Removed duplicate root markdown docs after folding core setup and system overview into `README.md`
+
 ### Security
 - Removed hardcoded JWT secret — now configurable via environment
 - Removed hardcoded cookie domain — now configurable via environment
