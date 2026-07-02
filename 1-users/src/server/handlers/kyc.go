@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"omni/src/db"
 	"omni/src/events/producer"
@@ -12,6 +13,67 @@ import (
 	"omni/src/models/events"
 	"github.com/go-chi/chi/v5"
 )
+
+// TEMPORARY: KYC auto-approves this long after registration so wallets
+// activate without manual review. Replace with an admin-driven KYC service
+// producing the same kyc-approved event.
+const kycAutoApprovalDelay = time.Minute
+
+// approveKYCByAccountId marks the user approved and notifies other services
+// (the wallet service activates the account's wallets). Idempotent: an
+// already-approved account is a no-op.
+func approveKYCByAccountId(accountId string) error {
+	user, err := db.GetUserByAccountId(accountId)
+	if err != nil {
+		return err
+	}
+
+	if user.KYCStatus == models.KYCStatusApproved {
+		return nil
+	}
+
+	user.KYCStatus = models.KYCStatusApproved
+	if err := db.UpdateUser(user); err != nil {
+		return err
+	}
+
+	kycApprovedEvent := events.KYCApprovedEvent{
+		AccountId: user.AccountId,
+		KYCStatus: user.KYCStatus,
+	}
+	if err := producer.ProduceKYCApprovedEvent(kycApprovedEvent); err != nil {
+		log.Printf("failed to produce kyc-approved event: %v", err)
+	} else {
+		log.Printf("KAFKA EVENT kyc-approved sent acc#: %s", user.AccountId)
+	}
+
+	return nil
+}
+
+// ScheduleAutoKYCApproval auto-approves a freshly registered account after
+// kycAutoApprovalDelay unless its status changed in the meantime (e.g. an
+// admin rejected it).
+func ScheduleAutoKYCApproval(accountId string) {
+	go func() {
+		time.Sleep(kycAutoApprovalDelay)
+
+		user, err := db.GetUserByAccountId(accountId)
+		if err != nil {
+			log.Printf("auto KYC approval: account %s not found: %v", accountId, err)
+			return
+		}
+		if user.KYCStatus != models.KYCStatusPending {
+			log.Printf("auto KYC approval: skipping acc#%s, status is %s", accountId, user.KYCStatus.String())
+			return
+		}
+
+		if err := approveKYCByAccountId(accountId); err != nil {
+			log.Printf("auto KYC approval failed for acc#%s: %v", accountId, err)
+			return
+		}
+		log.Printf("auto KYC approval: approved acc#%s", accountId)
+	}()
+}
 
 // HandlerApproveKYC approves a user's KYC status
 // This should typically be called after manual review or automated verification
@@ -36,31 +98,15 @@ func HandlerApproveKYC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update KYC status to approved
-	user.KYCStatus = models.KYCStatusApproved
-	err = db.UpdateUser(user)
-	if err != nil {
+	if err := approveKYCByAccountId(user.AccountId); err != nil {
 		http.Error(w, "Error updating KYC status", http.StatusInternalServerError)
 		return
 	}
 
-	// Publish KYC approved event to notify other services (e.g., wallet service)
-	kycApprovedEvent := events.AccountCreatedEvent{
-		AccountId: user.AccountId,
-		Currency:  user.Currency,
-		KYCStatus: user.KYCStatus,
-	}
-
-	err = producer.ProduceAccountCreatedEvent(kycApprovedEvent)
-	if err != nil {
-		log.Printf("failed to produce KYC approved event: %v", err)
-	}
-	log.Printf("KAFKA EVENT kyc-approved sent acc#: %s", kycApprovedEvent.AccountId)
-
 	response := map[string]interface{}{
 		"message":   "KYC approved successfully",
 		"accountId": user.AccountId,
-		"kycStatus": user.KYCStatus.String(),
+		"kycStatus": models.KYCStatusApproved.String(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

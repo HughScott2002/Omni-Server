@@ -12,6 +12,7 @@ import (
 const (
 	AccountCreatedTopic           = "account-created"
 	AccountDeletionRequestedTopic = "account-deletion-requested"
+	KYCApprovedTopic              = "kyc-approved"
 	ConsumerGroup                 = "wallet-service"
 )
 
@@ -52,6 +53,11 @@ func ensureTopic(ctx context.Context) error {
 		},
 		{
 			Topic:             AccountDeletionRequestedTopic,
+			NumPartitions:     3,
+			ReplicationFactor: 1,
+		},
+		{
+			Topic:             KYCApprovedTopic,
 			NumPartitions:     3,
 			ReplicationFactor: 1,
 		},

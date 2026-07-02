@@ -112,6 +112,10 @@ func HandlerRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("KAKFA EVENT account-created sent acc#: %s", userCreatedEvent.AccountId)
 
+	// TEMPORARY: auto-approve KYC shortly after registration (activates the
+	// wallet via the kyc-approved event) until an admin KYC service exists
+	ScheduleAutoKYCApproval(user.AccountId)
+
 	// Generate access token
 	accessToken, err := utils.GenerateAccessToken(user.Email)
 	if err != nil {

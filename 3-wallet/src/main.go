@@ -36,11 +36,17 @@ func main() {
 			cancel()
 		}()
 
-		// Start the consumer in a goroutine
+		// Start the consumers in goroutines
 		go func() {
 			log.Println("Starting Kafka consumer...")
 			if err := consumer.ConsumeAccountCreatedEvents(ctx); err != nil {
 				log.Printf("Kafka consumer error: %v", err)
+			}
+		}()
+
+		go func() {
+			if err := consumer.ConsumeKYCApprovedEvents(ctx); err != nil {
+				log.Printf("Kafka kyc-approved consumer error: %v", err)
 			}
 		}()
 	} else {
