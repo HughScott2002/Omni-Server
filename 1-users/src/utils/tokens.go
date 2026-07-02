@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 func GenerateAccessToken(email string) (string, error) {
@@ -20,9 +21,14 @@ func GenerateAccessToken(email string) (string, error) {
 
 func GenerateRefreshToken(email string) (string, error) {
 	expirationTime := time.Now().Add(7 * 24 * time.Hour)
+	// JTI makes every token unique; without it, two tokens for the same
+	// email issued in the same second are byte-identical, which breaks
+	// rotation and per-device logout.
 	claims := &jwt.RegisteredClaims{
 		Subject:   email,
 		ExpiresAt: jwt.NewNumericDate(expirationTime),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		ID:        uuid.NewString(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

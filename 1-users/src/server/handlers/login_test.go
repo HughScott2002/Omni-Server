@@ -3,8 +3,10 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"omni/src/db"
@@ -13,8 +15,13 @@ import (
 )
 
 func setupTestDB() {
-	// Initialize in-memory database for testing
-	db.Init()
+	// Handler tests always run against the in-memory implementation,
+	// regardless of the caller's environment.
+	os.Setenv("ENVIRONMENT", "local")
+	os.Setenv("MODE", "memcached")
+	if err := db.Init(); err != nil {
+		panic(fmt.Sprintf("failed to initialize test database: %v", err))
+	}
 }
 
 func createTestUser(email, password string) (*models.User, error) {

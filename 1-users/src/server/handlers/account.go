@@ -11,6 +11,7 @@ import (
 	"omni/src/db"
 	"omni/src/events/producer"
 	"omni/src/models"
+	"omni/src/utils"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -203,10 +204,15 @@ func HandlerChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the user from database
+	if err := utils.ValidatePassword(passwordChangeReq.NewPassword); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 401 (not 404) so this endpoint can't be used to enumerate accounts
 	storedUser, err := db.GetUser(passwordChangeReq.Email)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 

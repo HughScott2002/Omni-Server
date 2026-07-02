@@ -132,7 +132,7 @@ func TestHandlerListActiveSessions_Success(t *testing.T) {
 	// Create test user and login to create sessions
 	testEmail := "list-sessions@example.com"
 	testPassword := "password123"
-	// user, _ := createTestUser(testEmail, testPassword)
+	createTestUser(testEmail, testPassword)
 
 	// Login to create a session
 	loginReq := map[string]string{
@@ -154,6 +154,11 @@ func TestHandlerListActiveSessions_Success(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/sessions", bytes.NewReader(listBody))
 	req.Header.Set("Content-Type", "application/json")
+	for _, cookie := range loginW.Result().Cookies() {
+		if cookie.Name == "access_token" {
+			req.AddCookie(cookie)
+		}
+	}
 	w := httptest.NewRecorder()
 
 	HandlerListActiveSessions(w, req)

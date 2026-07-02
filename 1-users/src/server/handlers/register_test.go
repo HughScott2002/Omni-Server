@@ -20,6 +20,7 @@ func TestHandlerRegister_Success(t *testing.T) {
 		"firstName": "John",
 		"lastName":  "Doe",
 		"currency":  "USD",
+		"omniTag":   "JD123",
 	}
 	reqBody, _ := json.Marshal(registerReq)
 
@@ -114,6 +115,7 @@ func TestHandlerRegister_DuplicateEmail(t *testing.T) {
 		"password":  "differentpassword",
 		"firstName": "Jane",
 		"lastName":  "Doe",
+		"omniTag":   "JANE1",
 	}
 	reqBody, _ := json.Marshal(registerReq)
 
@@ -167,6 +169,7 @@ func TestHandlerRegister_InvalidEmailFormat(t *testing.T) {
 		"password":  "password123",
 		"firstName": "John",
 		"lastName":  "Doe",
+		"omniTag":   "EM123",
 	}
 	reqBody, _ := json.Marshal(registerReq)
 
@@ -194,6 +197,7 @@ func TestHandlerRegister_WeakPassword(t *testing.T) {
 		"password":  "123",
 		"firstName": "John",
 		"lastName":  "Doe",
+		"omniTag":   "WK123",
 	}
 	reqBody, _ := json.Marshal(registerReq)
 
@@ -222,6 +226,7 @@ func TestHandlerRegister_PasswordIsHashed(t *testing.T) {
 		"password":  plainPassword,
 		"firstName": "John",
 		"lastName":  "Doe",
+		"omniTag":   "HS123",
 	}
 	reqBody, _ := json.Marshal(registerReq)
 
@@ -258,6 +263,7 @@ func TestHandlerRegister_AccountIdGeneration(t *testing.T) {
 		"password":  "password123",
 		"firstName": "John",
 		"lastName":  "Doe",
+		"omniTag":   "AC101",
 	}
 	reqBody, _ := json.Marshal(registerReq)
 
@@ -271,8 +277,11 @@ func TestHandlerRegister_AccountIdGeneration(t *testing.T) {
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
 
-	user := response["user"].(map[string]interface{})
-	accountId := user["id"].(string)
+	user, ok := response["user"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Response does not contain user data: %s", w.Body.String())
+	}
+	accountId, _ := user["id"].(string)
 
 	if accountId == "" {
 		t.Error("Account ID was not generated")
@@ -285,6 +294,7 @@ func TestHandlerRegister_AccountIdGeneration(t *testing.T) {
 		"password":  "password123",
 		"firstName": "Jane",
 		"lastName":  "Doe",
+		"omniTag":   "AC202",
 	}
 	reqBody2, _ := json.Marshal(registerReq2)
 
@@ -298,8 +308,11 @@ func TestHandlerRegister_AccountIdGeneration(t *testing.T) {
 	var response2 map[string]interface{}
 	json.Unmarshal(w2.Body.Bytes(), &response2)
 
-	user2 := response2["user"].(map[string]interface{})
-	accountId2 := user2["id"].(string)
+	user2, ok := response2["user"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Response does not contain user data: %s", w2.Body.String())
+	}
+	accountId2, _ := user2["id"].(string)
 
 	if accountId == accountId2 {
 		t.Error("Account IDs are not unique")

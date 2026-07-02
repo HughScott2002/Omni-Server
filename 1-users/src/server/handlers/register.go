@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/mail"
 
 	"omni/src/db"
 	"omni/src/db/services"
@@ -36,6 +37,16 @@ func HandlerRegister(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	// Decode the JSON body into the User struct
 	if err := json.Unmarshal(body, &user); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if _, err := mail.ParseAddress(user.Email); err != nil {
+		http.Error(w, "Invalid email address", http.StatusBadRequest)
+		return
+	}
+
+	if err := utils.ValidatePassword(user.UnHashedPassword); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

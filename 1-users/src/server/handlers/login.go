@@ -43,6 +43,11 @@ func HandlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !storedUser.CanLogin() {
+		http.Error(w, "Account is disabled or pending deletion", http.StatusForbidden)
+		return
+	}
+
 	// Generate tokens
 	accessToken, err := utils.GenerateAccessToken(loginRequest.Email)
 	if err != nil {

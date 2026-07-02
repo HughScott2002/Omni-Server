@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -37,6 +38,11 @@ func HandlerRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !user.CanLogin() {
+		http.Error(w, "Account is disabled or pending deletion", http.StatusForbidden)
+		return
+	}
+
 	// Generate new access token
 	newAccessToken, err := utils.GenerateAccessToken(user.Email)
 	if err != nil {
@@ -68,12 +74,16 @@ func HandlerRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update the session's last login time
+	// Point the session at the rotated token and refresh its last login time
 	sessions, err := db.GetUserSessions(user.Email)
 	if err == nil {
 		for _, session := range sessions {
 			if session.Token == refreshTokenValue {
-				db.UpdateSessionLastLogin(session.ID)
+				session.Token = newRefreshToken
+				session.LastLoginAt = time.Now()
+				if err := db.AddSession(session); err != nil {
+					log.Printf("Failed to update session %s after token rotation: %v", session.ID, err)
+				}
 				break
 			}
 		}

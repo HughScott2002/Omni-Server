@@ -37,6 +37,28 @@ func HandlerListActiveSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Callers may only list their own sessions: require a valid access
+	// token (bearer or cookie) whose subject matches the requested email
+	accessTokenStr := utils.ExtractBearerToken(r)
+	if accessTokenStr == "" {
+		if cookie, err := r.Cookie("access_token"); err == nil {
+			accessTokenStr = cookie.Value
+		}
+	}
+	if accessTokenStr == "" {
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	claims, err := utils.ValidateAccessToken(accessTokenStr)
+	if err != nil {
+		http.Error(w, "Invalid access token", http.StatusUnauthorized)
+		return
+	}
+	if claims.Subject != request.Email {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
 	// Get all sessions for the user
 	sessions, err := db.GetUserSessions(request.Email)
 	if err != nil {
