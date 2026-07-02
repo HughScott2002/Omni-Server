@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -258,10 +259,19 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 		transaction.Metadata["riskDecision"] = riskAssessment.Decision
 	}
 
-	// Update balances (in production, this should be atomic with transaction creation)
-	// TODO: Implement proper balance update in wallet service
-	newSenderBalance := senderWallet.Balance - req.Amount
-	newReceiverBalance := receiverWallet.Balance + req.Amount
+	// Move the money: one atomic transfer inside the wallet service — both
+	// legs apply or neither does, so there is no partial state to compensate.
+	result, err := utils.TransferBetweenWallets(senderWallet.WalletID, receiverWallet.WalletID, req.Amount, transaction.Reference)
+	if err != nil {
+		log.Printf("Transfer %s: wallet transfer failed: %v", transaction.ID, err)
+		failTransfer(w, transaction, req.IdempotencyKey, err)
+		return
+	}
+
+	newSenderBalance := result.FromWallet.Balance
+	newReceiverBalance := result.ToWallet.Balance
+	transaction.BalanceBefore = newSenderBalance + req.Amount
+	transaction.BalanceAfter = newSenderBalance
 
 	// Mark transaction as completed
 	completedTime := time.Now()
@@ -338,5 +348,54 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// failTransfer marks the transaction failed, emits the failed event, and writes
+// the error response. Business declines from the wallet service return 400 and
+// are stored for idempotency; an unreachable wallet service returns 502 without
+// storing, so the client can safely retry with the same key.
+func failTransfer(w http.ResponseWriter, transaction *models.Transaction, idempotencyKey string, cause error) {
+	failedTime := time.Now()
+	transaction.Status = models.TransactionStatusFailed
+	transaction.FailedReason = cause.Error()
+	transaction.UpdatedAt = failedTime
+
+	if err := db.UpdateTransaction(transaction); err != nil {
+		log.Printf("Failed to update transaction status: %v", err)
+	}
+
+	producer.ProduceTransactionFailedEvent(events.TransactionFailedEvent{
+		TransactionID:       transaction.ID,
+		Reference:           transaction.Reference,
+		SenderAccountID:     transaction.SenderAccountID,
+		ReceiverAccountID:   transaction.ReceiverAccountID,
+		Amount:              transaction.Amount,
+		Currency:            transaction.Currency,
+		TransactionType:     string(transaction.TransactionType),
+		TransactionCategory: string(transaction.TransactionCategory),
+		Description:         transaction.Description,
+		FailedReason:        cause.Error(),
+		Timestamp:           failedTime,
+	})
+
+	status := http.StatusBadGateway
+	message := "Transfer failed: wallet service unavailable"
+	if errors.Is(cause, utils.ErrWalletRejected) {
+		status = http.StatusBadRequest
+		message = fmt.Sprintf("Transfer failed: %v", cause)
+	}
+
+	response := &models.TransferResponse{
+		Status:  "failed",
+		Message: message,
+	}
+
+	if errors.Is(cause, utils.ErrWalletRejected) {
+		db.StoreIdempotencyKey(idempotencyKey, transaction.SenderAccountID, response)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(response)
 }

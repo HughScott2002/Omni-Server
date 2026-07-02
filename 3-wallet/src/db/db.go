@@ -25,6 +25,7 @@ type Database interface {
 	ListWallets(accountId string) ([]*models.Wallet, error)
 	UpdateWalletStatus(id string, status models.WalletStatus) error
 	UpdateWalletBalance(id string, balance float64) error
+	Transfer(fromID, toID string, amount float64, reference string) (*models.WalletTransferResult, error)
 	GetDefaultWallet(accountId string) (*models.Wallet, error)
 	SetDefaultWallet(accountId string, walletId string) error
 	FreezeWallet(accountId string) error
@@ -54,7 +55,7 @@ func Init() error {
 		RedisClient, err := InitRedis()
 		if err != nil {
 			// panic("Failed to connect to Redis: " + err.Error())
-			return fmt.Errorf("Failed to connect to Redis: " + err.Error())
+			return fmt.Errorf("failed to connect to Redis: %v", err)
 		}
 		db = implementations.RedisImplementation(RedisClient)
 		log.Println("USING REDIS IN WALLET SERVICE")
@@ -108,6 +109,10 @@ func UpdateWalletStatus(id string, status models.WalletStatus) error {
 
 func UpdateWalletBalance(id string, balance float64) error {
 	return db.UpdateWalletBalance(id, balance)
+}
+
+func Transfer(fromID, toID string, amount float64, reference string) (*models.WalletTransferResult, error) {
+	return db.Transfer(fromID, toID, amount, reference)
 }
 
 func GetDefaultWallet(accountId string) (*models.Wallet, error) {

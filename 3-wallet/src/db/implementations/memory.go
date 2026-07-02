@@ -12,6 +12,7 @@ import (
 type MemoryImplementation struct {
 	wallets      map[string]*models.Wallet
 	virtualCards map[string]*models.VirtualCard
+	transfers    map[string]*models.WalletTransferResult // applied transfers by reference
 	mu           sync.RWMutex
 }
 
@@ -20,6 +21,7 @@ func NewMemoryImplementation() *MemoryImplementation {
 	return &MemoryImplementation{
 		wallets:      make(map[string]*models.Wallet),
 		virtualCards: make(map[string]*models.VirtualCard),
+		transfers:    make(map[string]*models.WalletTransferResult),
 	}
 }
 
@@ -41,7 +43,7 @@ func (m *MemoryImplementation) GetWallet(id string) (*models.Wallet, error) {
 
 	wallet, exists := m.wallets[id]
 	if !exists {
-		return nil, fmt.Errorf("wallet not found")
+		return nil, models.ErrWalletNotFound
 	}
 
 	return wallet, nil
@@ -135,6 +137,72 @@ func (m *MemoryImplementation) UpdateWalletBalance(id string, balance float64) e
 	now := time.Now()
 	wallet.LastActivity = &now
 	return nil
+}
+
+// Transfer atomically debits fromID and credits toID under one lock: both
+// legs apply or neither does. A reference seen before returns the original
+// result without moving money again.
+func (m *MemoryImplementation) Transfer(fromID, toID string, amount float64, reference string) (*models.WalletTransferResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if prior, exists := m.transfers[reference]; exists {
+		return prior, nil
+	}
+
+	if fromID == toID {
+		return nil, models.ErrSameWallet
+	}
+	if amount <= 0 {
+		return nil, models.ErrInvalidAmount
+	}
+
+	from, exists := m.wallets[fromID]
+	if !exists {
+		return nil, fmt.Errorf("%w: %s", models.ErrWalletNotFound, fromID)
+	}
+	to, exists := m.wallets[toID]
+	if !exists {
+		return nil, fmt.Errorf("%w: %s", models.ErrWalletNotFound, toID)
+	}
+
+	if from.Status != models.WalletStatusActive {
+		return nil, fmt.Errorf("%w: %s", models.ErrWalletInactive, fromID)
+	}
+	if to.Status != models.WalletStatusActive {
+		return nil, fmt.Errorf("%w: %s", models.ErrWalletInactive, toID)
+	}
+	if from.Currency != to.Currency {
+		return nil, models.ErrCurrencyMismatch
+	}
+	if from.Balance < amount {
+		return nil, models.ErrInsufficientFunds
+	}
+
+	total := from.Balance + to.Balance
+
+	from.Balance -= amount
+	to.Balance += amount
+	now := time.Now()
+	from.UpdatedAt = now
+	to.UpdatedAt = now
+	from.LastActivity = &now
+	to.LastActivity = &now
+
+	// Invariants: a transfer never overdraws and never creates or destroys
+	// money. Violation means a bug in this function; crash loudly.
+	if from.Balance < 0 {
+		panic(fmt.Sprintf("invariant violation: wallet %s overdrawn to %.2f", fromID, from.Balance))
+	}
+	if from.Balance+to.Balance != total {
+		panic(fmt.Sprintf("invariant violation: transfer %s not conservative", reference))
+	}
+
+	fromCopy := *from
+	toCopy := *to
+	result := &models.WalletTransferResult{FromWallet: &fromCopy, ToWallet: &toCopy}
+	m.transfers[reference] = result
+	return result, nil
 }
 
 func (m *MemoryImplementation) GetDefaultWallet(accountId string) (*models.Wallet, error) {

@@ -1,11 +1,14 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -42,11 +45,20 @@ type VirtualCard struct {
 	MonthlyLimit float64 `json:"monthlyLimit"`
 }
 
-var (
-	userServiceURL   = getEnv("USER_SERVICE_URL", "http://users:8080")
-	walletServiceURL = getEnv("WALLET_SERVICE_URL", "http://wallets:8082")
-	httpClient       = &http.Client{Timeout: 10 * time.Second}
-)
+var httpClient = &http.Client{Timeout: 10 * time.Second}
+
+// ErrWalletRejected marks business declines from the wallet service (4xx),
+// as opposed to the service being unreachable.
+var ErrWalletRejected = errors.New("wallet operation rejected")
+
+// Service URLs are read per call so tests can point them at httptest servers.
+func userServiceURL() string {
+	return getEnv("USER_SERVICE_URL", "http://user-service:8080")
+}
+
+func walletServiceURL() string {
+	return getEnv("WALLET_SERVICE_URL", "http://wallet-service:8080")
+}
 
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
@@ -57,7 +69,7 @@ func getEnv(key, defaultValue string) string {
 
 // GetUserByOmniTag fetches user information by OmniTag from the user service
 func GetUserByOmniTag(omniTag string) (*UserInfo, error) {
-	url := fmt.Sprintf("%s/api/users/search/%s", userServiceURL, omniTag)
+	url := fmt.Sprintf("%s/api/users/auth/search/omnitag/%s", userServiceURL(), omniTag)
 
 	resp, err := httpClient.Get(url)
 	if err != nil {
@@ -80,7 +92,7 @@ func GetUserByOmniTag(omniTag string) (*UserInfo, error) {
 
 // GetWallet fetches wallet information by wallet ID from the wallet service
 func GetWallet(walletID string) (*Wallet, error) {
-	url := fmt.Sprintf("%s/api/wallets/%s", walletServiceURL, walletID)
+	url := fmt.Sprintf("%s/api/wallets/%s", walletServiceURL(), walletID)
 
 	resp, err := httpClient.Get(url)
 	if err != nil {
@@ -103,7 +115,7 @@ func GetWallet(walletID string) (*Wallet, error) {
 
 // GetDefaultWallet fetches the default wallet for an account
 func GetDefaultWallet(accountID string) (*Wallet, error) {
-	url := fmt.Sprintf("%s/api/wallets/list/%s", walletServiceURL, accountID)
+	url := fmt.Sprintf("%s/api/wallets/list/%s", walletServiceURL(), accountID)
 
 	resp, err := httpClient.Get(url)
 	if err != nil {
@@ -138,7 +150,7 @@ func GetDefaultWallet(accountID string) (*Wallet, error) {
 
 // GetVirtualCard fetches card information by card ID from the wallet service
 func GetVirtualCard(cardID string) (*VirtualCard, error) {
-	url := fmt.Sprintf("%s/api/wallets/cards/%s", walletServiceURL, cardID)
+	url := fmt.Sprintf("%s/api/wallets/cards/%s", walletServiceURL(), cardID)
 
 	resp, err := httpClient.Get(url)
 	if err != nil {
@@ -159,14 +171,50 @@ func GetVirtualCard(cardID string) (*VirtualCard, error) {
 	return &card, nil
 }
 
-// UpdateWalletBalance updates the wallet balance via the wallet service
-// Note: This is a simplified version. In production, you'd want proper wallet update endpoints
-func UpdateWalletBalance(walletID string, newBalance float64) error {
-	// In a real implementation, you'd call a proper wallet update endpoint
-	// For now, we'll assume the wallet service has an internal update mechanism
-	// or we'd need to add a specific endpoint for balance updates
+// WalletTransferResult carries both wallets as returned by the wallet
+// service after an atomic transfer.
+type WalletTransferResult struct {
+	FromWallet Wallet `json:"fromWallet"`
+	ToWallet   Wallet `json:"toWallet"`
+}
 
-	// This is a placeholder - you'll need to implement the actual API call
-	// based on how the wallet service exposes balance updates
-	return nil
+// TransferBetweenWallets moves money between two wallets in one atomic wallet
+// service operation: both legs apply or neither does. The reference is the
+// transfer's identity — replaying the same reference is a no-op that returns
+// the original result, so this call is safe to retry.
+func TransferBetweenWallets(fromWalletID, toWalletID string, amount float64, reference string) (*WalletTransferResult, error) {
+	url := fmt.Sprintf("%s/api/wallets/transfer", walletServiceURL())
+
+	body, err := json.Marshal(map[string]interface{}{
+		"fromWalletId": fromWalletID,
+		"toWalletId":   toWalletID,
+		"amount":       amount,
+		"reference":    reference,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal transfer request: %v", err)
+	}
+
+	resp, err := httpClient.Post(url, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call wallet service: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+		msg, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("%w: %s", ErrWalletRejected, strings.TrimSpace(string(msg)))
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("wallet service returned status %d: %s", resp.StatusCode, string(msg))
+	}
+
+	var result WalletTransferResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode transfer result: %v", err)
+	}
+
+	return &result, nil
 }

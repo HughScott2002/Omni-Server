@@ -37,6 +37,7 @@ func Router() http.Handler {
 		//Wallet routes
 		r.Get("/{walletId}", handlers.GetWallet)
 		r.Get("/list/{accountId}", handlers.ListWallets) //List all the wallets
+		r.Post("/transfer", handlers.HandlerWalletTransfer)
 		r.Get("/recover", func(http.ResponseWriter, *http.Request) { panic("foo") })
 
 		// Virtual card routes under /api/wallets/cards

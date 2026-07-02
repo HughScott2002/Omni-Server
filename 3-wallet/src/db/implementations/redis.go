@@ -17,6 +17,7 @@ const (
 	defaultWalletKey  = "account:default:%s"       // account:default:{accountId}
 	virtualCardKey    = "virtual_card:%s"          // virtual_card:{cardId}
 	accountCardsKey   = "account:virtual_cards:%s" // account:virtual_cards:{accountId}
+	walletTransferKey = "wallet:transfer:%s"       // wallet:transfer:{reference}
 )
 
 // Redis extends db.RedisDB with the actual Redis client
@@ -71,7 +72,7 @@ func (r *Redis) GetWallet(id string) (*models.Wallet, error) {
 	data, err := r.client.Get(ctx, fmt.Sprintf(walletKey, id)).Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			return nil, fmt.Errorf("wallet not found")
+			return nil, models.ErrWalletNotFound
 		}
 		return nil, err
 	}
@@ -219,6 +220,84 @@ func (r *Redis) UpdateWalletBalance(id string, balance float64) error {
 	wallet.LastActivity = &now
 
 	return r.UpdateWallet(wallet)
+}
+
+// Transfer debits fromID and credits toID, recording the result under the
+// reference for idempotent replay. Read-modify-write, not atomic: concurrent
+// transfers touching the same wallet can race. Acceptable for the demo; a Lua
+// script or WATCH would fix it.
+func (r *Redis) Transfer(fromID, toID string, amount float64, reference string) (*models.WalletTransferResult, error) {
+	ctx := context.Background()
+
+	// Idempotent replay: return the recorded result for a known reference.
+	if data, err := r.client.Get(ctx, fmt.Sprintf(walletTransferKey, reference)).Bytes(); err == nil {
+		var prior models.WalletTransferResult
+		if err := json.Unmarshal(data, &prior); err == nil {
+			return &prior, nil
+		}
+	}
+
+	if fromID == toID {
+		return nil, models.ErrSameWallet
+	}
+	if amount <= 0 {
+		return nil, models.ErrInvalidAmount
+	}
+
+	from, err := r.GetWallet(fromID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", err, fromID)
+	}
+	to, err := r.GetWallet(toID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", err, toID)
+	}
+
+	if from.Status != models.WalletStatusActive {
+		return nil, fmt.Errorf("%w: %s", models.ErrWalletInactive, fromID)
+	}
+	if to.Status != models.WalletStatusActive {
+		return nil, fmt.Errorf("%w: %s", models.ErrWalletInactive, toID)
+	}
+	if from.Currency != to.Currency {
+		return nil, models.ErrCurrencyMismatch
+	}
+	if from.Balance < amount {
+		return nil, models.ErrInsufficientFunds
+	}
+
+	now := time.Now()
+	from.Balance -= amount
+	to.Balance += amount
+	from.UpdatedAt = now
+	to.UpdatedAt = now
+	from.LastActivity = &now
+	to.LastActivity = &now
+
+	result := &models.WalletTransferResult{FromWallet: from, ToWallet: to}
+
+	fromData, err := json.Marshal(from)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling wallet: %v", err)
+	}
+	toData, err := json.Marshal(to)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling wallet: %v", err)
+	}
+	resultData, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling transfer result: %v", err)
+	}
+
+	pipe := r.client.Pipeline()
+	pipe.Set(ctx, fmt.Sprintf(walletKey, fromID), fromData, 0)
+	pipe.Set(ctx, fmt.Sprintf(walletKey, toID), toData, 0)
+	pipe.Set(ctx, fmt.Sprintf(walletTransferKey, reference), resultData, 0)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (r *Redis) GetDefaultWallet(accountId string) (*models.Wallet, error) {
