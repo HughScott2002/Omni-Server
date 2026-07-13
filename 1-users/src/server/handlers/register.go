@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"net/mail"
 
+	"golang.org/x/crypto/bcrypt"
 	"omni/src/db"
 	"omni/src/db/services"
 	"omni/src/events/producer"
 	"omni/src/models"
 	"omni/src/models/events"
 	"omni/src/utils"
-	"golang.org/x/crypto/bcrypt"
 )
 
 //TODO: Need a way to add Tags
@@ -112,9 +112,8 @@ func HandlerRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("KAKFA EVENT account-created sent acc#: %s", userCreatedEvent.AccountId)
 
-	// TEMPORARY: auto-approve KYC shortly after registration (activates the
-	// wallet via the kyc-approved event) until an admin KYC service exists
-	ScheduleAutoKYCApproval(user.AccountId)
+	// Accounts stay pending until the user completes verification
+	// (POST /kyc/{accountid}/submit with consent) — no auto-approval.
 
 	// Generate access token
 	accessToken, err := utils.GenerateAccessToken(user.Email)
