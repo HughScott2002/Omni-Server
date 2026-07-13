@@ -344,7 +344,10 @@ def main() -> None:
         sys.exit(f"savings wallet seeding failed: {status} {result}")
 
     if card_id:
-        api("POST", f"/api/wallets/cards/{card_id}/topup", {"amount": 500.00})
+        # Idempotent: only top up a fresh card, re-runs shouldn't stack $500s.
+        status, card = api("GET", f"/api/wallets/cards/{card_id}")
+        if status == 200 and card.get("availableBalance", 0) < 500:
+            api("POST", f"/api/wallets/cards/{card_id}/topup", {"amount": 500.00})
 
     print("\nDone. Log in with demo@omni.dev / DemoPass123!")
     print(f"  accountId: {demo['id']}")
