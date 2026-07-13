@@ -26,7 +26,11 @@ func Router() http.Handler {
 	})
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"}, // Allow your frontend origin
+		AllowedOrigins: []string{
+			"https://omniui-plum.vercel.app",
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},

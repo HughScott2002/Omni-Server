@@ -36,11 +36,13 @@ func (m *MemoryDB) CreateTransaction(tx *models.Transaction) error {
 	m.transactions[tx.ID] = tx
 	m.references[tx.Reference] = tx.ID
 
-	// Add to account's transaction list
+	// Add to account's transaction list. Self-transfers (same account on
+	// both sides) must be listed once — Redis's ZADD dedupes naturally,
+	// so match that behaviour here.
 	if tx.SenderAccountID != "" {
 		m.accountTxs[tx.SenderAccountID] = append(m.accountTxs[tx.SenderAccountID], tx.ID)
 	}
-	if tx.ReceiverAccountID != "" {
+	if tx.ReceiverAccountID != "" && tx.ReceiverAccountID != tx.SenderAccountID {
 		m.accountTxs[tx.ReceiverAccountID] = append(m.accountTxs[tx.ReceiverAccountID], tx.ID)
 	}
 
@@ -48,7 +50,7 @@ func (m *MemoryDB) CreateTransaction(tx *models.Transaction) error {
 	if tx.SenderWalletID != "" {
 		m.walletTxs[tx.SenderWalletID] = append(m.walletTxs[tx.SenderWalletID], tx.ID)
 	}
-	if tx.ReceiverWalletID != "" {
+	if tx.ReceiverWalletID != "" && tx.ReceiverWalletID != tx.SenderWalletID {
 		m.walletTxs[tx.ReceiverWalletID] = append(m.walletTxs[tx.ReceiverWalletID], tx.ID)
 	}
 
