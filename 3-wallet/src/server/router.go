@@ -26,7 +26,11 @@ func Router() http.Handler {
 	})
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"}, // Allow your frontend origin
+		AllowedOrigins: []string{
+			"https://omniui-plum.vercel.app",
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -39,6 +43,10 @@ func Router() http.Handler {
 		r.Get("/list/{accountId}", handlers.ListWallets) //List all the wallets
 		r.Post("/transfer", handlers.HandlerWalletTransfer)
 		r.Get("/recover", func(http.ResponseWriter, *http.Request) { panic("foo") })
+
+		// Dev-only seeding (handlers 404 unless ENVIRONMENT=local)
+		r.Post("/dev/wallets", handlers.HandlerDevUpsertWallet)
+		r.Put("/dev/balance", handlers.HandlerDevSetBalance)
 
 		// Virtual card routes under /api/wallets/cards
 		r.Route("/cards", func(r chi.Router) {

@@ -19,9 +19,14 @@ func Router() http.Handler {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 
-	// CORS configuration
+	// CORS configuration — credentialed requests forbid the "*" wildcard,
+	// so list the frontend origins explicitly (same set as user-service).
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins: []string{
+			"https://omniui-plum.vercel.app",
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -50,6 +55,9 @@ func Router() http.Handler {
 
 		// Card purchases
 		r.Post("/purchase", handlers.HandlerCardPurchase)
+
+		// Dev-only bulk seeding (handler 404s unless ENVIRONMENT=local)
+		r.Post("/dev/seed", handlers.HandlerDevSeedTransactions)
 
 		// Get transaction history
 		r.Get("/account/{accountId}", handlers.HandlerGetTransactionsByAccount)

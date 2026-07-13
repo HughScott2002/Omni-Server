@@ -1,4 +1,4 @@
-.PHONY: help build down restart logs ps clean \
+.PHONY: help build down restart logs ps clean seed \
         swarm-init swarm-deploy swarm-stop swarm-logs swarm-ps swarm-scale swarm-update swarm-clean \
         swarm-build test
 
@@ -46,6 +46,10 @@ build:
 down:
 	@echo "Stopping docker-compose services..."
 	docker compose --env-file .env.example down
+
+seed:
+	@echo "Seeding demo data (demo@omni.dev / DemoPass123!)..."
+	python3 scripts/seed-demo-data.py
 
 restart:
 	@echo "Restarting docker-compose services..."
