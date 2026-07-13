@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"golang.org/x/crypto/bcrypt"
 	"omni/src/db"
 	"omni/src/events/producer"
 	"omni/src/models"
 	"omni/src/utils"
-	"github.com/go-chi/chi/v5"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func HandlerGetUserProfile(w http.ResponseWriter, r *http.Request) {
@@ -23,30 +23,29 @@ func HandlerGetUserProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := db.GetUserByAccountId(accountId) // You'll need to implement this
+	users, err := db.GetUserByAccountId(accountId)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
-	//Type of account
-	//TODO: Omni Tag, Autogenerate it for now
 
 	profile := map[string]interface{}{
-		"accountId":  users.AccountId,
-		"email":      users.Email,
-		"firstName":  users.FirstName,
-		"lastName":   users.LastName,
-		"phone":      users.Phone,
-		"address":    users.Address,
-		"city":       users.City,
-		"state":      users.State,
-		"country":    users.Country,
-		"currency":   users.Currency,
-		"postalCode": users.PostalCode,
-		"dob":        users.DOB,
-		"govId":      users.GovId,
-		"kycStatus":  users.KYCStatus.String(),
-		// "backupCodes": users.BackupCodes,
+		"accountId":         users.AccountId,
+		"email":             users.Email,
+		"firstName":         users.FirstName,
+		"lastName":          users.LastName,
+		"phone":             users.Phone,
+		"address":           users.Address,
+		"city":              users.City,
+		"state":             users.State,
+		"country":           users.Country,
+		"currency":          users.Currency,
+		"postalCode":        users.PostalCode,
+		"dob":               users.DOB,
+		"govId":             users.GovId,
+		"kycStatus":         users.KYCStatus.String(),
+		"omniTag":           users.OmniTag,
+		"dataAuthorization": users.DataAuthorization,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

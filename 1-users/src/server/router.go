@@ -3,9 +3,9 @@ package server
 import (
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"omni/src/server/handlers"
 	"omni/src/server/middleware"
-	"github.com/go-chi/chi/v5"
 )
 
 // TODO: FIX THE AUTH, it needs to accept tokens on each request and make sure its vaild
@@ -86,6 +86,9 @@ func Router() http.Handler {
 				//TODO: ADD Logout for individual sessions
 				r.Post("/logout/{sessionid}", handlers.HandlerLogoutSessionById)
 			})
+
+			// Recent account activity (sign-ins per device, self-only)
+			r.Post("/activity", handlers.HandlerAccountActivity)
 
 			// Two-factor authentication on these devices has been remembered for 30 days.
 

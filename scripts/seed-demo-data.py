@@ -101,7 +101,9 @@ def ensure_user(payload: dict) -> dict:
             sys.exit(f"cannot register or login {payload['email']}: {status} {body}")
         print(f"  logged in {payload['email']} -> {body['user']['id']}")
     user = body["user"]
-    api("POST", f"/api/users/auth/kyc/{user['id']}/approve")
+    # Complete verification the way the app does: submit registration info
+    # with signed consent (auto-approves and activates wallets via Kafka).
+    api("POST", f"/api/users/auth/kyc/{user['id']}/submit", {"consent": True})
     return user
 
 

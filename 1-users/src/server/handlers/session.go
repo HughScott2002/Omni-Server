@@ -6,11 +6,11 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"omni/src/db"
 	"omni/src/db/services"
 	"omni/src/models"
 	"omni/src/utils"
-	"github.com/go-chi/chi/v5"
 )
 
 func HandlerListActiveSessions(w http.ResponseWriter, r *http.Request) {
@@ -66,8 +66,15 @@ func HandlerListActiveSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The caller's own session is the one holding their refresh token —
+	// there is no middleware that stamps a sessionID into the context.
+	var currentToken string
+	if cookie, err := r.Cookie("refresh_token"); err == nil {
+		currentToken = cookie.Value
+	}
+
 	// Format the sessions for the response
-	var activeSessions []map[string]interface{}
+	activeSessions := []map[string]interface{}{}
 	for _, session := range sessions {
 		// Get IP from X-Forwarded-For header or remote address when session was created
 		ipAddress := session.IPAddress
@@ -77,8 +84,11 @@ func HandlerListActiveSessions(w http.ResponseWriter, r *http.Request) {
 		// Parse browser info from DeviceInfo (User-Agent)
 		browser := services.ParseBrowser(session.DeviceInfo)
 
-		// Format the time
+		isCurrent := currentToken != "" && session.Token == currentToken
 		lastLoginTime := services.FormatSessionTime(session.LastLoginAt)
+		if isCurrent {
+			lastLoginTime = "Current Session"
+		}
 
 		activeSessions = append(activeSessions, map[string]interface{}{
 			"id":              session.ID,
@@ -87,21 +97,8 @@ func HandlerListActiveSessions(w http.ResponseWriter, r *http.Request) {
 			"lastLoginAt":     lastLoginTime,
 			"ipAddress":       ipAddress,
 			"deviceInfo":      session.DeviceInfo,
-			"isCurrentDevice": false, // Will be set to true for current session
+			"isCurrentDevice": isCurrent,
 		})
-	}
-	var currentSessionID string
-	if sid := r.Context().Value("sessionID"); sid != nil {
-		currentSessionID = sid.(string)
-	}
-	// Only try to mark current session if we have a session ID
-	if currentSessionID != "" {
-		for i, session := range activeSessions {
-			if session["id"] == currentSessionID {
-				activeSessions[i]["isCurrentDevice"] = true
-				activeSessions[i]["lastLoginAt"] = "Current Session"
-			}
-		}
 	}
 	// Send the response
 	w.Header().Set("Content-Type", "application/json")

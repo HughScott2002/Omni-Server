@@ -5,19 +5,13 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"time"
 
+	"github.com/go-chi/chi/v5"
 	"omni/src/db"
 	"omni/src/events/producer"
 	"omni/src/models"
 	"omni/src/models/events"
-	"github.com/go-chi/chi/v5"
 )
-
-// TEMPORARY: KYC auto-approves this long after registration so wallets
-// activate without manual review. Replace with an admin-driven KYC service
-// producing the same kyc-approved event.
-const kycAutoApprovalDelay = time.Minute
 
 // approveKYCByAccountId marks the user approved and notifies other services
 // (the wallet service activates the account's wallets). Idempotent: an
@@ -48,31 +42,6 @@ func approveKYCByAccountId(accountId string) error {
 	}
 
 	return nil
-}
-
-// ScheduleAutoKYCApproval auto-approves a freshly registered account after
-// kycAutoApprovalDelay unless its status changed in the meantime (e.g. an
-// admin rejected it).
-func ScheduleAutoKYCApproval(accountId string) {
-	go func() {
-		time.Sleep(kycAutoApprovalDelay)
-
-		user, err := db.GetUserByAccountId(accountId)
-		if err != nil {
-			log.Printf("auto KYC approval: account %s not found: %v", accountId, err)
-			return
-		}
-		if user.KYCStatus != models.KYCStatusPending {
-			log.Printf("auto KYC approval: skipping acc#%s, status is %s", accountId, user.KYCStatus.String())
-			return
-		}
-
-		if err := approveKYCByAccountId(accountId); err != nil {
-			log.Printf("auto KYC approval failed for acc#%s: %v", accountId, err)
-			return
-		}
-		log.Printf("auto KYC approval: approved acc#%s", accountId)
-	}()
 }
 
 // HandlerApproveKYC approves a user's KYC status
@@ -237,19 +206,60 @@ func HandlerSubmitKYC(w http.ResponseWriter, r *http.Request) {
 		user.GovId = govId
 	}
 
-	// Set KYC status to pending (requires approval)
-	user.KYCStatus = models.KYCStatusPending
+	// The user must explicitly confirm their information is accurate and
+	// authorize its processing before verification can proceed.
+	consent, _ := kycData["consent"].(bool)
+	if !consent {
+		http.Error(w, "Consent is required to submit KYC", http.StatusBadRequest)
+		return
+	}
 
-	err = db.UpdateUser(user)
-	if err != nil {
+	// Verification currently needs the identity fields collected at
+	// registration; document upload and manual review come later.
+	missing := []string{}
+	required := map[string]string{
+		"firstName":  user.FirstName,
+		"lastName":   user.LastName,
+		"address":    user.Address,
+		"city":       user.City,
+		"country":    user.Country,
+		"postalCode": user.PostalCode,
+		"dob":        user.DOB,
+		"govId":      user.GovId,
+	}
+	for field, value := range required {
+		if value == "" {
+			missing = append(missing, field)
+		}
+	}
+	if len(missing) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message":       "Missing required KYC information",
+			"missingFields": missing,
+		})
+		return
+	}
+
+	user.DataAuthorization = true
+	if err := db.UpdateUser(user); err != nil {
 		http.Error(w, "Error updating KYC information", http.StatusInternalServerError)
 		return
 	}
 
+	// With complete registration info + signed consent, approve immediately.
+	// A real verification pipeline (documents, review) will replace this and
+	// leave the status pending until review completes.
+	if err := approveKYCByAccountId(user.AccountId); err != nil {
+		http.Error(w, "Error approving KYC", http.StatusInternalServerError)
+		return
+	}
+
 	response := map[string]interface{}{
-		"message":   "KYC information submitted successfully. Awaiting approval.",
+		"message":   "Identity verified. Your account is approved.",
 		"accountId": user.AccountId,
-		"kycStatus": user.KYCStatus.String(),
+		"kycStatus": models.KYCStatusApproved.String(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
