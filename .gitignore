@@ -1,5 +1,11 @@
 .env*
 !.env.example
 !.env.*.example
+!.envrc
 .claude
 CLAUDE.md
+
+# Nix
+result
+result-*
+.direnv/
