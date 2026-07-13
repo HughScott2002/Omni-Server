@@ -1,0 +1,15 @@
+# Shared golangci-lint config for all Go services.
+# golangci-lint walks up from each service dir and finds this file.
+version: "2"
+
+linters:
+  default: standard   # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - misspell        # common spelling mistakes in comments/strings
+    - unconvert       # redundant type conversions
+    - bodyclose       # unclosed HTTP response bodies
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
