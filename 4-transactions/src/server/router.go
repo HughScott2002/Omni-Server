@@ -51,6 +51,9 @@ func Router() http.Handler {
 		// Card purchases
 		r.Post("/purchase", handlers.HandlerCardPurchase)
 
+		// Dev-only bulk seeding (handler 404s unless ENVIRONMENT=local)
+		r.Post("/dev/seed", handlers.HandlerDevSeedTransactions)
+
 		// Get transaction history
 		r.Get("/account/{accountId}", handlers.HandlerGetTransactionsByAccount)
 		r.Get("/wallet/{walletId}", handlers.HandlerGetTransactionsByWallet)

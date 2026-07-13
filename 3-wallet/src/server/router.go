@@ -40,6 +40,10 @@ func Router() http.Handler {
 		r.Post("/transfer", handlers.HandlerWalletTransfer)
 		r.Get("/recover", func(http.ResponseWriter, *http.Request) { panic("foo") })
 
+		// Dev-only seeding (handlers 404 unless ENVIRONMENT=local)
+		r.Post("/dev/wallets", handlers.HandlerDevUpsertWallet)
+		r.Put("/dev/balance", handlers.HandlerDevSetBalance)
+
 		// Virtual card routes under /api/wallets/cards
 		r.Route("/cards", func(r chi.Router) {
 			// Create a new virtual card
