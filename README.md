@@ -19,7 +19,7 @@ make seed      # demo user + 6 months of transaction history
 
 Log in from Omni-UI with **demo@omni.dev / DemoPass123!**
 
-> Storage is **in-memory** (`MODE=memcached`) — data resets on every `make down`/`restart`. Re-run `make seed` afterward. Redis-backed `MODE=db` exists but isn't finished yet (#10).
+> Storage is **in-memory by design** (`MODE=memcached`) — it keeps iteration fast while the services are still taking shape. Data resets on every `make down`/`restart`; re-run `make seed` afterward. A persistent database lands later — the Redis-backed `MODE=db` groundwork exists but isn't finished (#10).
 
 ## Architecture
 
