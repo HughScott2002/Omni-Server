@@ -9,11 +9,14 @@ help:
 	@echo "================================================"
 	@echo ""
 	@echo "Docker Compose (Simple Development):"
-	@echo "  make build          - Build and start services with docker-compose"
+	@echo "  make build          - Build, start, and seed the stack (start here)"
+	@echo "  make seed           - Reseed demo data without rebuilding"
 	@echo "  make down           - Stop docker-compose services"
-	@echo "  make restart        - Restart docker-compose services"
+	@echo "  make restart        - Restart and reseed"
 	@echo "  make logs           - View docker-compose logs"
 	@echo "  make ps             - List docker-compose services"
+	@echo ""
+	@echo "  Log in with demo@omni.dev / DemoPass123!"
 	@echo ""
 	@echo "Docker Swarm (Production-like Testing):"
 	@echo "  make swarm-init     - Initialize Docker Swarm"
@@ -42,19 +45,22 @@ help:
 build:
 	@echo "Building with docker-compose..."
 	docker compose --env-file .env.example up --build -d
+	@$(MAKE) --no-print-directory seed
 
 down:
 	@echo "Stopping docker-compose services..."
 	docker compose --env-file .env.example down
 
+# Storage is in-memory, so demo data dies with the containers. `build` and
+# `restart` both call this; run it directly to reset the data without a rebuild.
 seed:
-	@echo "Seeding demo data (demo@omni.dev / DemoPass123!)..."
+	@echo "Seeding demo data..."
 	python3 scripts/seed-demo-data.py
 
 restart:
 	@echo "Restarting docker-compose services..."
 	docker compose --env-file .env.example down
-	docker compose --env-file .env.example up --build -d
+	@$(MAKE) --no-print-directory build
 
 logs:
 	docker compose --env-file .env.example logs -f

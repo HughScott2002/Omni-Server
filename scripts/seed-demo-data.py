@@ -11,11 +11,13 @@ Creates (idempotently):
 
 Data is written through dev-only service endpoints (/api/transactions/dev/seed,
 /api/wallets/dev/*), which only exist when ENVIRONMENT=local. The stack runs
-with in-memory storage (MODE=memcached), so re-run this script after every
-`make down` / `make restart`.
+with in-memory storage (MODE=memcached), so the data dies with the containers.
 
-Usage:  python3 scripts/seed-demo-data.py
-Requires: the docker-compose stack running (nginx gateway on :80).
+Usage:  make build   (builds, starts, and runs this)
+        make seed    (reseed a running stack without rebuilding)
+
+Waits for the gateway itself, so it is safe to run the moment
+`docker compose up -d` returns.
 """
 
 import json
@@ -85,6 +87,36 @@ def api(method: str, path: str, body=None) -> tuple[int, dict]:
             return e.code, json.loads(e.read() or b"{}")
         except json.JSONDecodeError:
             return e.code, {}
+
+
+def wait_for_stack(timeout: int = 90) -> None:
+    """Block until the gateway can reach user-service.
+
+    `make build` runs this right after `docker compose up -d`, so the first
+    few seconds are connection-refused rather than HTTP errors — api() only
+    handles the latter, so poll here before touching any real endpoint.
+    """
+    deadline = time.monotonic() + timeout
+    waiting = False
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(
+                GATEWAY + "/api/users/health", timeout=3
+            ) as resp:
+                if resp.status == 200:
+                    if waiting:
+                        print(" ready")
+                    return
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            pass  # HTTPError subclasses URLError, so non-200s keep waiting too
+        if not waiting:
+            print("Waiting for the stack…", end="", flush=True)
+            waiting = True
+        else:
+            print(".", end="", flush=True)
+        time.sleep(2)
+    print()
+    sys.exit(f"gateway never answered /api/users/health in {timeout}s — try `make logs`")
 
 
 def ensure_user(payload: dict) -> dict:
@@ -273,6 +305,8 @@ def build_history(
 def main() -> None:
     now = datetime.now(timezone.utc)
 
+    wait_for_stack()
+
     print("Ensuring demo users…")
     demo = ensure_user(DEMO_USER)
     peer = ensure_user(PEER_USER)
@@ -295,6 +329,17 @@ def main() -> None:
 
     savings = next((w for w in wallets if w["type"] == "SAVINGS"), None)
     savings_id = savings["walletId"] if savings else str(uuid.uuid4())
+
+    # The account's transaction list appends rather than dedupes
+    # (4-transactions/src/db/implementations/memory.go:43), and every run mints
+    # fresh transaction ids — so seeding twice would stack a second six months
+    # of history on top of a balance that only accounts for the first.
+    status, existing = api("GET", f"/api/transactions/account/{demo['id']}?limit=1")
+    if status == 200 and existing:
+        print("\nDemo history is already seeded — leaving it alone.")
+        print("  Log in with demo@omni.dev / DemoPass123!")
+        print("  `make restart` gives you a clean slate.")
+        return
 
     print("Building 6 months of history…")
     txs, primary_balance, savings_balance = build_history(
@@ -355,7 +400,9 @@ def main() -> None:
     print(f"  accountId: {demo['id']}")
     print(f"  primary wallet: {primary['walletId']} (${primary_balance})")
     print(f"  savings wallet: {savings_id} (${savings_balance})")
-    print("\nNote: storage is in-memory — re-run this script after `make down`.")
+    print("\nNote: storage is in-memory, so this data dies with the containers.")
+    print("`make build` and `make restart` reseed for you. `make seed` fills in a")
+    print("running stack with no demo data yet; `make restart` gives a clean slate.")
 
 
 if __name__ == "__main__":
