@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -22,8 +21,6 @@ func HandlerLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	fmt.Printf("%s\n", body)
-
 	var loginRequest models.User
 
 	// Decode the JSON body into the User struct
@@ -37,7 +34,7 @@ func HandlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(storedUser.HashedPassword), []byte(loginRequest.UnHashedPassword))
+	err = bcrypt.CompareHashAndPassword([]byte(storedUser.HashedPassword), []byte(string(loginRequest.UnHashedPassword)))
 	if err != nil {
 		http.Error(w, "Invalid password", http.StatusUnauthorized)
 		return

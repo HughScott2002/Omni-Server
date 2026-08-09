@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 )
@@ -14,7 +13,6 @@ func HandlerDump(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	fmt.Printf("%s\n", body)
 	w.WriteHeader(http.StatusOK)
 	w.Write(body)
 }

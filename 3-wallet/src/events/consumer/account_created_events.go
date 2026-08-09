@@ -191,7 +191,10 @@ func createDefaultVirtualCard(wallet *models.Wallet, event eventsModel.AccountCr
 		return fmt.Errorf("failed to generate card number: %v", err)
 	}
 
-	cvv, cvvHash, err := utils.GenerateCVV()
+	// The plaintext CVV is deliberately discarded: only the hash is stored, and
+	// the server log is not a delivery channel. Surfacing it to the cardholder
+	// needs a real one-time reveal path.
+	_, cvvHash, err := utils.GenerateCVV()
 	if err != nil {
 		return fmt.Errorf("failed to generate CVV: %v", err)
 	}
@@ -249,6 +252,6 @@ func createDefaultVirtualCard(wallet *models.Wallet, event eventsModel.AccountCr
 		log.Printf("Failed to publish virtual card created event: %v", err)
 	}
 
-	log.Printf("Successfully created default virtual card %s for wallet %s (CVV: %s - shown only once)", card.ID, wallet.WalletId, cvv)
+	log.Printf("Successfully created default virtual card %s for wallet %s", card.ID, wallet.WalletId)
 	return nil
 }
