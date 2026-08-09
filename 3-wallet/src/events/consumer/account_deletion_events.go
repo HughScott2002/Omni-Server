@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"example.com/m/v2/src/db"
@@ -37,13 +37,13 @@ func ConsumeAccountDeletionEvents(ctx context.Context) error {
 			msg, err := reader.ReadMessage(ctx)
 			if err != nil {
 				if err != context.Canceled {
-					log.Printf("Error reading message: %v", err)
+					slog.Error("Error reading message", "error", err)
 				}
 				time.Sleep(time.Second)
 				continue
 			}
 			if err := processAccountDeletionMessage(msg); err != nil {
-				log.Printf("Error processing deletion message: %v", err)
+				slog.Error("Error processing deletion message", "error", err)
 			}
 		}
 	}

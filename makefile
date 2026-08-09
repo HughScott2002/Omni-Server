@@ -45,6 +45,11 @@ help:
 build:
 	@echo "Building with docker-compose..."
 	docker compose --env-file .env.example up --build -d
+	@# nginx resolves its upstreams once at startup. Rebuilt services come back
+	@# on new IPs, and compose leaves nginx alone because its image is unchanged,
+	@# so it keeps proxying to addresses nobody is listening on and answers 502.
+	@echo "Reloading gateway against the new service addresses..."
+	@docker compose --env-file .env.example restart nginx >/dev/null
 	@$(MAKE) --no-print-directory seed
 
 down:

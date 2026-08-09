@@ -1,13 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"omni/src/db"
 	"omni/src/server"
 	"omni/src/server/handlers"
+	"omni/src/utils"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -24,10 +25,13 @@ import (
 //TODO: ADD PROGRESS TRACKER FOR
 
 func main() {
+	utils.InitLogger("user-service")
+
 	// Initialize
 	err := db.Init()
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		slog.Error("Failed to initialize database", "error", err)
+		os.Exit(1)
 	}
 	r := chi.NewRouter()
 
@@ -56,8 +60,11 @@ func main() {
 		// 	r.Get("/update", HandlerPlaceHolder)
 		// })
 	})
-	fmt.Println("User server is running on Port 8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	slog.Info("User server is running", "port", 8080)
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		slog.Error("Server stopped", "error", err)
+		os.Exit(1)
+	}
 
 }
 func HandlerPlaceHolder(w http.ResponseWriter, r *http.Request) {

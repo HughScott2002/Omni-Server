@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"example.com/transactions/v1/src/server/handlers"
@@ -37,7 +37,7 @@ func Router() http.Handler {
 	// Debug middleware
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("Route Debug - Method: %s, Path: %s", r.Method, r.URL.Path)
+			slog.Debug("Route debug", "method", r.Method, "path", r.URL.Path)
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -69,7 +69,7 @@ func Router() http.Handler {
 
 	// 404 handler
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("404 Not Found - Method: %s, Path: '%s'", r.Method, r.URL.Path)
+		slog.Info("404 Not Found - Method, Path: ''", "method", r.Method, "path", r.URL.Path)
 		http.Error(w, "Route not found", http.StatusNotFound)
 	})
 

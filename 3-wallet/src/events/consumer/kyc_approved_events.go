@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"example.com/m/v2/src/db"
@@ -35,7 +35,7 @@ func ConsumeKYCApprovedEvents(ctx context.Context) error {
 	})
 	defer reader.Close()
 
-	log.Printf("Started consuming topic: %s with group: %s", events.KYCApprovedTopic, events.ConsumerGroup)
+	slog.Info("Started consuming topic with group", "kYCApprovedTopic", events.KYCApprovedTopic, "consumerGroup", events.ConsumerGroup)
 
 	for {
 		select {
@@ -45,14 +45,14 @@ func ConsumeKYCApprovedEvents(ctx context.Context) error {
 			msg, err := reader.ReadMessage(ctx)
 			if err != nil {
 				if err != context.Canceled {
-					log.Printf("Error reading message: %v", err)
+					slog.Error("Error reading message", "error", err)
 				}
 				time.Sleep(time.Second)
 				continue
 			}
 
 			if err := processKYCApprovedMessage(msg); err != nil {
-				log.Printf("Error processing kyc-approved message: %v", err)
+				slog.Error("Error processing kyc-approved message", "error", err)
 				continue
 			}
 		}
@@ -66,11 +66,11 @@ func processKYCApprovedMessage(msg kafka.Message) error {
 	}
 
 	if event.KYCStatus != "approved" {
-		log.Printf("Ignoring kyc event for acc#%s with status %q", event.AccountId, event.KYCStatus)
+		slog.Info("Ignoring kyc event for acc# with status", "accountId", event.AccountId, "kYCStatus", event.KYCStatus)
 		return nil
 	}
 
-	log.Printf("KYC approved for acc#%s, activating wallets", event.AccountId)
+	slog.Info("KYC approved for acc#, activating wallets", "accountId", event.AccountId)
 	return activateAccountWallets(event.AccountId)
 }
 
@@ -89,7 +89,7 @@ func activateAccountWallets(accountId string) error {
 		if err := db.UpdateWallet(wallet); err != nil {
 			return fmt.Errorf("failed to activate wallet %s: %v", wallet.WalletId, err)
 		}
-		log.Printf("Activated wallet %s for acc#%s", wallet.WalletId, accountId)
+		slog.Info("Activated wallet for acc", "walletId", wallet.WalletId, "accountId", accountId)
 	}
 
 	cards, err := db.GetVirtualCardsByAccountId(accountId)
@@ -107,7 +107,7 @@ func activateAccountWallets(accountId string) error {
 		if err := db.UpdateVirtualCard(card); err != nil {
 			return fmt.Errorf("failed to activate card %s: %v", card.ID, err)
 		}
-		log.Printf("Activated virtual card %s for acc#%s", card.ID, accountId)
+		slog.Info("Activated virtual card for acc", "cardId", card.ID, "accountId", accountId)
 	}
 
 	return nil

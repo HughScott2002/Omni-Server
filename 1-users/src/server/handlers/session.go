@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -110,40 +110,40 @@ func HandlerListActiveSessions(w http.ResponseWriter, r *http.Request) {
 func HandlerCheckSession(w http.ResponseWriter, r *http.Request) {
 	var user *models.User
 
-	log.Println("Starting session check")
+	slog.Debug("Starting session check")
 
 	// Try Authorization header first (mobile), then fall back to cookie (web)
 	accessTokenStr := utils.ExtractBearerToken(r)
 	if accessTokenStr == "" {
 		accessTokenCookie, cookieErr := r.Cookie("access_token")
 		if cookieErr != nil {
-			log.Println("Access token not found:", cookieErr)
+			slog.Debug("Access token not found", "error", cookieErr)
 		} else {
 			accessTokenStr = accessTokenCookie.Value
 		}
 	}
 
 	if accessTokenStr == "" {
-		log.Println("No access token available")
+		slog.Debug("No access token available")
 	} else {
 		// Access token exists, try to validate it
 		claims, err := utils.ValidateAccessToken(accessTokenStr)
 		if err != nil {
-			log.Println("Access token validation failed:", err)
+			slog.Debug("Access token validation failed", "error", err)
 		} else {
 			// Access token is valid, get the user
 			user, err = db.GetUser(claims.Subject)
 			if err != nil {
-				log.Println("Failed to get user from access token:", err)
+				slog.Warn("Failed to get user from access token", "error", err)
 			} else {
-				log.Println("User retrieved from access token")
+				slog.Debug("User retrieved from access token")
 			}
 		}
 	}
 
 	// If we don't have a valid user at this point, try the refresh token
 	if user == nil {
-		log.Println("Attempting to use refresh token")
+		slog.Debug("Attempting to use refresh token")
 		// Check request body for refresh token (mobile), then cookie (web)
 		var refreshTokenValue string
 		var bodyReq struct {
@@ -160,39 +160,39 @@ func HandlerCheckSession(w http.ResponseWriter, r *http.Request) {
 		if refreshTokenValue == "" {
 			refreshTokenCookie, cookieErr := r.Cookie("refresh_token")
 			if cookieErr != nil {
-				log.Println("Refresh token not found:", cookieErr)
+				slog.Debug("Refresh token not found", "error", cookieErr)
 				http.Error(w, "No valid session found", http.StatusUnauthorized)
 				return
 			}
 			refreshTokenValue = refreshTokenCookie.Value
 		}
 
-		log.Printf("Refresh token found: %s", refreshTokenValue)
+		slog.Debug("Refresh token found")
 
 		// Get the refresh token info
 		tokenInfo, err := db.GetRefreshToken(refreshTokenValue)
 		if err != nil {
-			log.Println("Invalid refresh token:", err)
+			slog.Warn("Invalid refresh token", "error", err)
 			http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
 			return
 		}
 
-		log.Printf("Refresh token info retrieved: %+v", tokenInfo)
+		slog.Debug("Refresh token info retrieved")
 
 		// Get the user associated with this refresh token
 		user, err = db.GetUser(tokenInfo.UserEmail)
 		if err != nil {
-			log.Println("User not found from refresh token:", err)
+			slog.Warn("User not found from refresh token", "error", err)
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
 
-		log.Println("User retrieved from refresh token")
+		slog.Debug("User retrieved from refresh token")
 
 		// Generate new access token
 		newAccessToken, err := utils.GenerateAccessToken(user.Email)
 		if err != nil {
-			log.Println("Error generating new access token:", err)
+			slog.Error("Error generating new access token", "error", err)
 			http.Error(w, "Error generating new access token", http.StatusInternalServerError)
 			return
 		}
@@ -211,7 +211,7 @@ func HandlerCheckSession(w http.ResponseWriter, r *http.Request) {
 		utils.SetCookie(w, "access_token", newAccessToken, 15*60) // 15 minutes
 		// utils.SetCookie(w, "refresh_token", refreshToken, 7*24*60*60)
 
-		log.Println("New access token set")
+		slog.Debug("New access token set")
 
 		// Update the session's last login time
 		sessions, err := db.GetUserSessions(user.Email)
@@ -219,17 +219,17 @@ func HandlerCheckSession(w http.ResponseWriter, r *http.Request) {
 			for _, session := range sessions {
 				if session.Token == refreshTokenValue {
 					db.UpdateSessionLastLogin(session.ID)
-					log.Println("Session last login time updated")
+					slog.Debug("Session last login time updated")
 					break
 				}
 			}
 		} else {
-			log.Println("Failed to get user sessions:", err)
+			slog.Error("Failed to get user sessions", "error", err)
 		}
 	}
 
 	if user == nil {
-		log.Println("No valid user found after all checks")
+		slog.Debug("No valid user found after all checks")
 		http.Error(w, "No valid session found", http.StatusUnauthorized)
 		return
 	}
@@ -249,7 +249,7 @@ func HandlerCheckSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(userData)
-	log.Println("Session check completed successfully")
+	slog.Debug("Session check completed successfully")
 }
 func HandlerLogoutAllOtherSessions(w http.ResponseWriter, r *http.Request) {
 	// Get current refresh token
@@ -277,11 +277,11 @@ func HandlerLogoutAllOtherSessions(w http.ResponseWriter, r *http.Request) {
 	for _, session := range sessions {
 		if session.Token != refreshTokenCookie.Value {
 			if err := db.DeleteSession(session.ID); err != nil {
-				log.Printf("Failed to delete session %s: %v", session.ID, err)
+				slog.Error("Failed to delete session", "sessionId", session.ID, "error", err)
 				continue
 			}
 			if err := db.DeleteRefreshToken(session.Token); err != nil {
-				log.Printf("Failed to delete refresh token for session %s: %v", session.ID, err)
+				slog.Error("Failed to delete refresh token for session", "sessionId", session.ID, "error", err)
 			}
 		}
 	}
@@ -313,7 +313,7 @@ func HandlerLogoutSessionById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.DeleteRefreshToken(session.Token); err != nil {
-		log.Printf("Failed to delete refresh token for session %s: %v", sessionID, err)
+		slog.Error("Failed to delete refresh token for session", "sessionId", sessionID, "error", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

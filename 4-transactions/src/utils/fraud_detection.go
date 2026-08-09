@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -74,8 +74,7 @@ func AssessTransactionRisk(req RiskAssessmentRequest) (*RiskAssessmentResponse, 
 		return nil, fmt.Errorf("failed to decode fraud detection response: %w", err)
 	}
 
-	log.Printf("Risk assessment for transaction %s: score=%.2f, level=%s, decision=%s",
-		riskResponse.TransactionID, riskResponse.RiskScore, riskResponse.RiskLevel, riskResponse.Decision)
+	slog.Info("Risk assessment for transaction: score=, level=, decision=", "transactionId", riskResponse.TransactionID, "riskScore", riskResponse.RiskScore, "riskLevel", riskResponse.RiskLevel, "decision", riskResponse.Decision)
 
 	return &riskResponse, nil
 }

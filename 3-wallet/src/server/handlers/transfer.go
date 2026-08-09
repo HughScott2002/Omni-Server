@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"example.com/m/v2/src/db"
@@ -46,13 +46,13 @@ func HandlerWalletTransfer(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, models.ErrInvalidAmount):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
-			log.Printf("Transfer %s -> %s (ref %s) failed: %v", req.FromWalletId, req.ToWalletId, req.Reference, err)
+			slog.Error("Transfer -> (ref) failed", "fromWalletId", req.FromWalletId, "toWalletId", req.ToWalletId, "reference", req.Reference, "error", err)
 			http.Error(w, "Failed to execute transfer", http.StatusInternalServerError)
 		}
 		return
 	}
 
-	log.Printf("Transfer %.2f from %s to %s (ref %s)", req.Amount, req.FromWalletId, req.ToWalletId, req.Reference)
+	slog.Info("Transfer from to (ref)", "amount", req.Amount, "fromWalletId", req.FromWalletId, "toWalletId", req.ToWalletId, "reference", req.Reference)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)

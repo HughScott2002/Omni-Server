@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"example.com/m/v2/src/db"
@@ -78,7 +78,7 @@ func ConsumeAccountCreatedEvents(ctx context.Context) error {
 	})
 	defer reader.Close()
 
-	log.Printf("Started consuming topic: %s with group: %s", events.AccountCreatedTopic, events.ConsumerGroup)
+	slog.Info("Started consuming topic with group", "accountCreatedTopic", events.AccountCreatedTopic, "consumerGroup", events.ConsumerGroup)
 
 	for {
 		select {
@@ -88,14 +88,14 @@ func ConsumeAccountCreatedEvents(ctx context.Context) error {
 			msg, err := reader.ReadMessage(ctx)
 			if err != nil {
 				if err != context.Canceled {
-					log.Printf("Error reading message: %v", err)
+					slog.Error("Error reading message", "error", err)
 				}
 				time.Sleep(time.Second)
 				continue
 			}
 
 			if err := processMessage(msg); err != nil {
-				log.Printf("Error processing message: %v", err)
+				slog.Error("Error processing message", "error", err)
 				continue
 			}
 		}
@@ -125,7 +125,7 @@ func ConsumeAccountCreatedEvents(ctx context.Context) error {
 // }
 
 func processMessage(msg kafka.Message) error {
-	log.Printf("Processing message with key: %s", string(msg.Key))
+	slog.Info("Processing message with key", "key", string(msg.Key))
 
 	var event eventsModel.AccountCreatedEvent
 	if err := json.Unmarshal(msg.Value, &event); err != nil {
@@ -141,8 +141,8 @@ func processMessage(msg kafka.Message) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse currency: %v", err)
 	}
-	log.Printf("Creating the Wallet ID#%s", walletId)
-	log.Printf("Creating the Account ACC#%s", event.AccountId)
+	slog.Info("Creating the Wallet ID", "walletId", walletId)
+	slog.Info("Creating the Account ACC", "accountId", event.AccountId)
 
 	var walletStatus models.WalletStatus
 	if event.KYCStatus == "pending" {
@@ -175,11 +175,11 @@ func processMessage(msg kafka.Message) error {
 
 	// Create default debit card for the wallet
 	if err := createDefaultVirtualCard(wallet, event); err != nil {
-		log.Printf("Warning: Failed to create default virtual card for wallet %s: %v", wallet.WalletId, err)
+		slog.Error("Warning: Failed to create default virtual card for wallet", "walletId", wallet.WalletId, "error", err)
 		// Don't fail the entire wallet creation if card creation fails
 	}
 
-	log.Printf("Successfully processed wallet creation for account: %s", event.AccountId)
+	slog.Info("Successfully processed wallet creation for account", "accountId", event.AccountId)
 	return nil
 }
 
@@ -249,9 +249,9 @@ func createDefaultVirtualCard(wallet *models.Wallet, event eventsModel.AccountCr
 		Timestamp:      time.Now(),
 	}
 	if err := producer.ProduceVirtualCardCreatedEvent(cardEvent); err != nil {
-		log.Printf("Failed to publish virtual card created event: %v", err)
+		slog.Error("Failed to publish virtual card created event", "error", err)
 	}
 
-	log.Printf("Successfully created default virtual card %s for wallet %s", card.ID, wallet.WalletId)
+	slog.Info("Successfully created default virtual card for wallet", "cardId", card.ID, "walletId", wallet.WalletId)
 	return nil
 }

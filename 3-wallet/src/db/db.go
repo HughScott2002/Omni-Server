@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -58,7 +58,7 @@ func Init() error {
 			return fmt.Errorf("failed to connect to Redis: %v", err)
 		}
 		db = implementations.RedisImplementation(RedisClient)
-		log.Println("USING REDIS IN WALLET SERVICE")
+		slog.Info("USING REDIS IN WALLET SERVICE")
 	case env == "prod" || env == "production":
 		return fmt.Errorf("production database not implemented")
 	default:

@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"log"
+	"log/slog"
 	"omni/fraud-detection/src/models"
 	"time"
 )
@@ -15,8 +15,7 @@ func AssessRisk(req models.RiskAssessmentRequest) models.RiskAssessmentResponse 
 	decision := DetermineDecision(riskScore, riskLevel)
 
 	// Log assessment
-	log.Printf("Risk Assessment - TxID: %s, Score: %.2f, Level: %s, Decision: %s, Reasons: %d",
-		req.TransactionID, riskScore, riskLevel, decision, len(reasons))
+	slog.Info("Risk Assessment - TxID, Score, Level, Decision, Reasons", "transactionId", req.TransactionID, "riskScore", riskScore, "riskLevel", riskLevel, "decision", decision, "len", len(reasons))
 
 	// Store transaction in history for velocity checks (only if not declined immediately)
 	if decision != models.DecisionDecline {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -19,7 +19,7 @@ import (
 func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 	var req models.TransferRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Failed to decode transfer request: %v", err)
+		slog.Warn("Failed to decode transfer request", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -48,7 +48,7 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 	// Get sender wallet
 	senderWallet, err := utils.GetWallet(req.SenderWalletID)
 	if err != nil {
-		log.Printf("Failed to get sender wallet: %v", err)
+		slog.Error("Failed to get sender wallet", "error", err)
 		http.Error(w, "Sender wallet not found", http.StatusNotFound)
 		return
 	}
@@ -89,7 +89,7 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 	// Look up receiver by OmniTag
 	receiverUser, err := utils.GetUserByOmniTag(req.ReceiverOmniTag)
 	if err != nil {
-		log.Printf("Failed to find receiver by OmniTag %s: %v", req.ReceiverOmniTag, err)
+		slog.Warn("Failed to find receiver by OmniTag", "error", err)
 		response := &models.TransferResponse{
 			Status:  "failed",
 			Message: "Receiver not found",
@@ -115,7 +115,7 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 	// Get receiver's default wallet
 	receiverWallet, err := utils.GetDefaultWallet(receiverUser.AccountID)
 	if err != nil {
-		log.Printf("Failed to get receiver wallet for account %s: %v", receiverUser.AccountID, err)
+		slog.Error("Failed to get receiver wallet for account", "accountId", receiverUser.AccountID, "error", err)
 		response := &models.TransferResponse{
 			Status:  "failed",
 			Message: "Receiver wallet not found",
@@ -165,7 +165,7 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 
 	// Save transaction to database
 	if err := db.CreateTransaction(transaction); err != nil {
-		log.Printf("Failed to create transaction: %v", err)
+		slog.Error("Failed to create transaction", "error", err)
 		http.Error(w, "Failed to create transaction", http.StatusInternalServerError)
 		return
 	}
@@ -200,13 +200,12 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		log.Printf("Failed to assess transaction risk: %v", err)
+		slog.Error("Failed to assess transaction risk", "error", err)
 		// In production, you might want to fail the transaction or flag for manual review
 		// For now, we'll log the error and continue
 	} else if !utils.IsTransactionApproved(riskAssessment) {
 		// Transaction was declined by fraud detection
-		log.Printf("Transaction %s declined by fraud detection: decision=%s, riskLevel=%s, reasons=%v",
-			transaction.ID, riskAssessment.Decision, riskAssessment.RiskLevel, riskAssessment.Reasons)
+		slog.Info("Transaction declined by fraud detection: decision=, riskLevel=, reasons=", "transactionId", transaction.ID, "decision", riskAssessment.Decision, "riskLevel", riskAssessment.RiskLevel, "reasons", riskAssessment.Reasons)
 
 		// Update transaction status to failed
 		failedTime := time.Now()
@@ -220,7 +219,7 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 		transaction.Metadata["riskReasons"] = riskAssessment.Reasons
 
 		if err := db.UpdateTransaction(transaction); err != nil {
-			log.Printf("Failed to update transaction status: %v", err)
+			slog.Error("Failed to update transaction status", "error", err)
 		}
 
 		// Publish transaction failed event
@@ -263,7 +262,7 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 	// legs apply or neither does, so there is no partial state to compensate.
 	result, err := utils.TransferBetweenWallets(senderWallet.WalletID, receiverWallet.WalletID, req.Amount, transaction.Reference)
 	if err != nil {
-		log.Printf("Transfer %s: wallet transfer failed: %v", transaction.ID, err)
+		slog.Error("Transfer: wallet transfer failed", "transactionId", transaction.ID, "error", err)
 		failTransfer(w, transaction, req.IdempotencyKey, err)
 		return
 	}
@@ -280,7 +279,7 @@ func HandlerTransferMoney(w http.ResponseWriter, r *http.Request) {
 	transaction.UpdatedAt = completedTime
 
 	if err := db.UpdateTransaction(transaction); err != nil {
-		log.Printf("Failed to update transaction status: %v", err)
+		slog.Error("Failed to update transaction status", "error", err)
 	}
 
 	// Publish transaction completed event
@@ -362,7 +361,7 @@ func failTransfer(w http.ResponseWriter, transaction *models.Transaction, idempo
 	transaction.UpdatedAt = failedTime
 
 	if err := db.UpdateTransaction(transaction); err != nil {
-		log.Printf("Failed to update transaction status: %v", err)
+		slog.Error("Failed to update transaction status", "error", err)
 	}
 
 	producer.ProduceTransactionFailedEvent(events.TransactionFailedEvent{

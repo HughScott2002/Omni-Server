@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -65,7 +65,7 @@ func HandlerSendContactRequest(w http.ResponseWriter, r *http.Request) {
 		Timestamp:   time.Now(),
 	}
 	if err := producer.ProduceContactRequestSentEvent(event); err != nil {
-		log.Printf("Failed to publish contact request sent event: %v", err)
+		slog.Error("Failed to publish contact request sent event", "error", err)
 		// Don't fail the request if event publishing fails
 	}
 
@@ -189,7 +189,7 @@ func HandlerAcceptContactRequest(w http.ResponseWriter, r *http.Request) {
 	// Get contact details for the event
 	contact, err := db.GetContact(contactID)
 	if err != nil {
-		log.Printf("Failed to get contact for event: %v", err)
+		slog.Error("Failed to get contact for event", "error", err)
 	} else {
 		// Publish contact request accepted event
 		event := events.ContactRequestAcceptedEvent{
@@ -200,7 +200,7 @@ func HandlerAcceptContactRequest(w http.ResponseWriter, r *http.Request) {
 			Timestamp:   time.Now(),
 		}
 		if err := producer.ProduceContactRequestAcceptedEvent(event); err != nil {
-			log.Printf("Failed to publish contact request accepted event: %v", err)
+			slog.Error("Failed to publish contact request accepted event", "error", err)
 		}
 	}
 
@@ -235,7 +235,7 @@ func HandlerRejectContactRequest(w http.ResponseWriter, r *http.Request) {
 	// Get contact details for the event
 	contact, err := db.GetContact(contactID)
 	if err != nil {
-		log.Printf("Failed to get contact for event: %v", err)
+		slog.Error("Failed to get contact for event", "error", err)
 	} else {
 		// Publish contact request rejected event
 		event := events.ContactRequestRejectedEvent{
@@ -246,7 +246,7 @@ func HandlerRejectContactRequest(w http.ResponseWriter, r *http.Request) {
 			Timestamp:   time.Now(),
 		}
 		if err := producer.ProduceContactRequestRejectedEvent(event); err != nil {
-			log.Printf("Failed to publish contact request rejected event: %v", err)
+			slog.Error("Failed to publish contact request rejected event", "error", err)
 		}
 	}
 
@@ -281,7 +281,7 @@ func HandlerBlockContact(w http.ResponseWriter, r *http.Request) {
 	// Get contact details for the event
 	contact, err := db.GetContact(contactID)
 	if err != nil {
-		log.Printf("Failed to get contact for event: %v", err)
+		slog.Error("Failed to get contact for event", "error", err)
 	} else {
 		// Publish contact blocked event
 		event := events.ContactBlockedEvent{
@@ -292,7 +292,7 @@ func HandlerBlockContact(w http.ResponseWriter, r *http.Request) {
 			Timestamp:   time.Now(),
 		}
 		if err := producer.ProduceContactBlockedEvent(event); err != nil {
-			log.Printf("Failed to publish contact blocked event: %v", err)
+			slog.Error("Failed to publish contact blocked event", "error", err)
 		}
 	}
 

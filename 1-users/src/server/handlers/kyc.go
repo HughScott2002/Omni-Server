@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -36,9 +36,9 @@ func approveKYCByAccountId(accountId string) error {
 		KYCStatus: user.KYCStatus,
 	}
 	if err := producer.ProduceKYCApprovedEvent(kycApprovedEvent); err != nil {
-		log.Printf("failed to produce kyc-approved event: %v", err)
+		slog.Error("failed to produce kyc-approved event", "error", err)
 	} else {
-		log.Printf("KAFKA EVENT kyc-approved sent acc#: %s", user.AccountId)
+		slog.Info("KAFKA EVENT kyc-approved sent acc", "accountId", user.AccountId)
 	}
 
 	return nil

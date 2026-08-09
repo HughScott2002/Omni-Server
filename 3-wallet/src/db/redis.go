@@ -2,7 +2,7 @@ package db
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -40,10 +40,10 @@ func RedisHealthCheck() {
 
 			_, err := RedisClient.Ping(ctx).Result()
 			if err != nil {
-				log.Printf("Redis Wallet health check failed: %v", err)
+				slog.Error("Redis Wallet health check failed", "error", err)
 				// You might want to implement a retry mechanism or alert system here
 			} else {
-				log.Println("Redis Wallet health check passed")
+				slog.Debug("Redis Wallet health check passed")
 			}
 		}
 	}

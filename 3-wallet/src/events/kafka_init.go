@@ -3,7 +3,7 @@ package events
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -29,7 +29,7 @@ func KafkaInit(ctx context.Context) bool {
 	// Then list the topics
 	err := list_topics()
 	if err != nil {
-		log.Printf("Topics listing error, %s", err.Error())
+		slog.Error("Topics listing error", "error", err.Error())
 		// if you can't list the topics then send back false
 		return false
 	}
@@ -72,7 +72,7 @@ func ensureTopic(ctx context.Context) error {
 }
 
 func list_topics() error {
-	log.Printf("Checking the Broker Connection...")
+	slog.Info("Checking the Broker Connection...")
 	conn, err := kafka.Dial("tcp", "broker:9092")
 	if err != nil {
 		return fmt.Errorf("error in getting connected to broker")
@@ -90,8 +90,10 @@ func list_topics() error {
 	for _, p := range partitions {
 		m[p.Topic] = struct{}{}
 	}
+	topics := make([]string, 0, len(m))
 	for k := range m {
-		fmt.Println(k)
+		topics = append(topics, k)
 	}
+	slog.Debug("Kafka topics present", "topics", topics)
 	return nil
 }

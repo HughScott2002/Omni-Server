@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/mail"
 
@@ -102,9 +102,9 @@ func HandlerRegister(w http.ResponseWriter, r *http.Request) {
 
 	err = producer.ProduceAccountCreatedEvent(userCreatedEvent)
 	if err != nil {
-		log.Printf("failed to produce user created event: %v", err)
+		slog.Error("failed to produce user created event", "error", err)
 	}
-	log.Printf("KAKFA EVENT account-created sent acc#: %s", userCreatedEvent.AccountId)
+	slog.Info("KAKFA EVENT account-created sent acc", "accountId", userCreatedEvent.AccountId)
 
 	// Accounts stay pending until the user completes verification
 	// (POST /kyc/{accountid}/submit with consent) — no auto-approval.
