@@ -13,12 +13,7 @@
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
 </p>
 
-<div align="center">
-  <a href="https://github.com/HughScott2002/Omni-Server/raw/main/docs/omni-demo.mp4">
-    <img src="docs/omni-demo-poster.png" width="820" alt="Omni dashboard — click to watch the demo" />
-  </a>
-  <p><a href="https://github.com/HughScott2002/Omni-Server/raw/main/docs/omni-demo.mp4">▶ Watch the demo</a> · 52s walkthrough of the seeded stack</p>
-</div>
+https://github.com/user-attachments/assets/0fd00bb5-51af-4c05-8184-740a182a2e13
 
 ## Quick start
 
