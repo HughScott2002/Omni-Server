@@ -35,7 +35,7 @@ type User struct {
 	GovId               string `json:"govId"`
 	Email               string `json:"email"`
 	OmniTag             string `json:"omniTag"` // Unique user tag (max 5 alphanumeric chars, case-sensitive)
-	UnHashedPassword    string `json:"password"`
+	UnHashedPassword    Secret `json:"password"`
 	HashedPassword      string
 	KYCStatus           KYCStatus     `json:"kycstatus"`
 	DataAuthorization   bool          `json:"dataAuthorization"`

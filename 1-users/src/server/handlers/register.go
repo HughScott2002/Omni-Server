@@ -21,18 +21,12 @@ import (
 //TODO: Need to know what kind of account it is? Personal? Business? Ect.
 
 func HandlerRegister(w http.ResponseWriter, r *http.Request) {
-	//Change
-	deviceInfo := r.Header.Get("User-Agent")
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
-
-	fmt.Println(deviceInfo)
-	fmt.Printf("%s\n", body)
-	//
 
 	var user models.User
 	// Decode the JSON body into the User struct
@@ -46,7 +40,7 @@ func HandlerRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := utils.ValidatePassword(user.UnHashedPassword); err != nil {
+	if err := utils.ValidatePassword(string(user.UnHashedPassword)); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -82,7 +76,7 @@ func HandlerRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.UnHashedPassword), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(string(user.UnHashedPassword)), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Error hashing password", http.StatusInternalServerError)
 		return
