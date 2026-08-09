@@ -13,6 +13,11 @@
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
 </p>
 
+<div align="center">
+  <video src="https://github.com/HughScott2002/Omni-Server/raw/main/docs/omni-demo.mp4" controls muted playsinline width="820"></video>
+  <p><a href="https://github.com/HughScott2002/Omni-Server/raw/main/docs/omni-demo.mp4">▶ Watch the demo</a> · 52s walkthrough of the seeded stack</p>
+</div>
+
 ## Quick start
 
 ```bash
