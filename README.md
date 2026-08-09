@@ -14,7 +14,9 @@
 </p>
 
 <div align="center">
-  <video src="https://github.com/HughScott2002/Omni-Server/raw/main/docs/omni-demo.mp4" controls muted playsinline width="820"></video>
+  <a href="https://github.com/HughScott2002/Omni-Server/raw/main/docs/omni-demo.mp4">
+    <img src="docs/omni-demo-poster.png" width="820" alt="Omni dashboard — click to watch the demo" />
+  </a>
   <p><a href="https://github.com/HughScott2002/Omni-Server/raw/main/docs/omni-demo.mp4">▶ Watch the demo</a> · 52s walkthrough of the seeded stack</p>
 </div>
 
