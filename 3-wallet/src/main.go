@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,9 +12,12 @@ import (
 	"example.com/m/v2/src/events"
 	"example.com/m/v2/src/events/consumer"
 	"example.com/m/v2/src/server"
+	"example.com/m/v2/src/utils"
 )
 
 func main() {
+	utils.InitLogger("wallet-service")
+
 	// Create a context that we can cancel
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -32,21 +35,21 @@ func main() {
 			sigChan := make(chan os.Signal, 1)
 			signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 			<-sigChan
-			log.Println("Shutting down gracefully...")
+			slog.Info("Shutting down gracefully...")
 			cancel()
 		}()
 
 		// Start the consumers in goroutines
 		go func() {
-			log.Println("Starting Kafka consumer...")
+			slog.Info("Starting Kafka consumer...")
 			if err := consumer.ConsumeAccountCreatedEvents(ctx); err != nil {
-				log.Printf("Kafka consumer error: %v", err)
+				slog.Error("Kafka consumer error", "error", err)
 			}
 		}()
 
 		go func() {
 			if err := consumer.ConsumeKYCApprovedEvents(ctx); err != nil {
-				log.Printf("Kafka kyc-approved consumer error: %v", err)
+				slog.Error("Kafka kyc-approved consumer error", "error", err)
 			}
 		}()
 	} else {
@@ -54,6 +57,9 @@ func main() {
 	}
 	//Then branch out into go routines for the server and the event handlers
 
-	log.Println("Wallet server is running on Port 8080")
-	log.Fatal(http.ListenAndServe(":8080", server.Router()))
+	slog.Info("Wallet server is running", "port", 8080)
+	if err := http.ListenAndServe(":8080", server.Router()); err != nil {
+		slog.Error("Server stopped", "error", err)
+		os.Exit(1)
+	}
 }

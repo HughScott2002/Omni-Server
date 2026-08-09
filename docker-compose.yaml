@@ -73,6 +73,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - COOKIE_DOMAIN=${COOKIE_DOMAIN}
       - ENVIRONMENT=${ENVIRONMENT}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
       - MODE=${MODE}
 
   notification-service:
@@ -140,6 +141,7 @@ services:
       - WALLET_REDIS_PASSWORD=${WALLET_REDIS_PASSWORD}
       - WALLET_REDIS_PORT=${WALLET_REDIS_PORT}
       - ENVIRONMENT=${ENVIRONMENT}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
       - MODE=${MODE}
       - KAFKA_RETRY_ATTEMPTS=5
       - KAFKA_RETRY_DELAY=2
@@ -162,6 +164,7 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${TRANSACTION_REDIS_PASSWORD}
       - ENVIRONMENT=${ENVIRONMENT}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
       - MODE=${MODE}
       - PORT=${TRANSACTION_SERVICE_INTERNAL_PORT}
       - USER_SERVICE_URL=http://user-service:8080
@@ -187,6 +190,7 @@ services:
     environment:
       - PORT=${FRAUD_DETECTION_SERVICE_INTERNAL_PORT}
       - ENVIRONMENT=${ENVIRONMENT}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
 
   # mailhog:
   #   image: mailhog/mailhog:latest

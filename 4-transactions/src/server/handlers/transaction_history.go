@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -55,7 +55,7 @@ func HandlerGetTransactionsByAccount(w http.ResponseWriter, r *http.Request) {
 	// Fetch transactions
 	transactions, err := db.GetTransactionsByAccountID(accountID, params)
 	if err != nil {
-		log.Printf("Failed to get transactions for account %s: %v", accountID, err)
+		slog.Error("Failed to get transactions for account", "accountId", accountID, "error", err)
 		http.Error(w, "Failed to fetch transactions", http.StatusInternalServerError)
 		return
 	}
@@ -109,7 +109,7 @@ func HandlerGetTransactionsByWallet(w http.ResponseWriter, r *http.Request) {
 	// Fetch transactions
 	transactions, err := db.GetTransactionsByWalletID(walletID, params)
 	if err != nil {
-		log.Printf("Failed to get transactions for wallet %s: %v", walletID, err)
+		slog.Error("Failed to get transactions for wallet", "walletId", walletID, "error", err)
 		http.Error(w, "Failed to fetch transactions", http.StatusInternalServerError)
 		return
 	}
@@ -129,7 +129,7 @@ func HandlerGetTransaction(w http.ResponseWriter, r *http.Request) {
 
 	transaction, err := db.GetTransaction(transactionID)
 	if err != nil {
-		log.Printf("Failed to get transaction %s: %v", transactionID, err)
+		slog.Error("Failed to get transaction", "transactionId", transactionID, "error", err)
 		http.Error(w, "Transaction not found", http.StatusNotFound)
 		return
 	}

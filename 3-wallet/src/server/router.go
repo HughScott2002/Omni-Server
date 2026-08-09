@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"example.com/m/v2/src/server/handlers"
@@ -20,7 +20,7 @@ func Router() http.Handler {
 	// Add debug middleware to log route matching
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("Route Debug - Method: %s, Path: %s, RoutePattern: %v", r.Method, r.URL.Path, chi.RouteContext(r.Context()))
+			slog.Debug("Route debug", "method", r.Method, "path", r.URL.Path)
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -72,7 +72,7 @@ func Router() http.Handler {
 
 	// Catch-all for debugging unmatched routes
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("404 Not Found - Method: %s, Path: '%s', Raw Path: '%s'", r.Method, r.URL.Path, r.URL.RawPath)
+		slog.Info("404 Not Found - Method, Path: '', Raw Path: ''", "method", r.Method, "path", r.URL.Path, "rawPath", r.URL.RawPath)
 		http.Error(w, "Route not found", http.StatusNotFound)
 	})
 

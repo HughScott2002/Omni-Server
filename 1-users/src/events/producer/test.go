@@ -2,7 +2,8 @@ package producer
 
 import (
 	"context"
-	"log"
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -15,7 +16,8 @@ func TestProducer() {
 
 	conn, err := kafka.DialLeader(context.Background(), "tcp", "broker:9092", topic, partition)
 	if err != nil {
-		log.Fatal("failed to dial leader:", err)
+		slog.Error("failed to dial leader", "error", err)
+		os.Exit(1)
 	}
 
 	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
@@ -25,10 +27,12 @@ func TestProducer() {
 		kafka.Message{Value: []byte("three!")},
 	)
 	if err != nil {
-		log.Fatal("failed to write messages:", err)
+		slog.Error("failed to write messages", "error", err)
+		os.Exit(1)
 	}
 
 	if err := conn.Close(); err != nil {
-		log.Fatal("failed to close writer:", err)
+		slog.Error("failed to close writer", "error", err)
+		os.Exit(1)
 	}
 }

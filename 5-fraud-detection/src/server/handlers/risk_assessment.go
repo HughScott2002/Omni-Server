@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"omni/fraud-detection/src/models"
@@ -13,7 +13,7 @@ import (
 func HandlerAssessRisk(w http.ResponseWriter, r *http.Request) {
 	var req models.RiskAssessmentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Failed to decode risk assessment request: %v", err)
+		slog.Warn("Failed to decode risk assessment request", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -38,8 +38,7 @@ func HandlerAssessRisk(w http.ResponseWriter, r *http.Request) {
 	response := utils.AssessRisk(req)
 
 	// Log the assessment
-	log.Printf("Risk assessed for transaction %s: score=%.2f, level=%s, decision=%s",
-		response.TransactionID, response.RiskScore, response.RiskLevel, response.Decision)
+	slog.Info("Risk assessed for transaction: score=, level=, decision=", "transactionId", response.TransactionID, "riskScore", response.RiskScore, "riskLevel", response.RiskLevel, "decision", response.Decision)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

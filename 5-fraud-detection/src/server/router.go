@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -43,6 +43,9 @@ func SetupRouter() {
 	// Wrap with CORS middleware
 	handler := enableCORS(mux)
 
-	log.Printf("Fraud Detection Service starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
+	slog.Info("Fraud Detection Service starting", "port", port)
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
+		slog.Error("Server stopped", "error", err)
+		os.Exit(1)
+	}
 }

@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -41,7 +41,7 @@ func ExtractBearerToken(r *http.Request) string {
 func SetCookie(w http.ResponseWriter, name, value string, maxAge int) {
 	isSecure := os.Getenv("ENVIRONMENT") == "production" || os.Getenv("ENVIRONMENT") == "prod"
 
-	fmt.Printf("Setting cookie: %s, MaxAge: %d\n", name, maxAge)
+	slog.Debug("Setting cookie", "name", name, "maxAge", maxAge)
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    value,

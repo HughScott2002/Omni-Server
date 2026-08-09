@@ -1,21 +1,25 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
 	"example.com/transactions/v1/src/db"
 	"example.com/transactions/v1/src/server"
+	"example.com/transactions/v1/src/utils"
 )
 
 func main() {
+	utils.InitLogger("transaction-service")
+
 	// Initialize database
 	if err := db.Init(); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		slog.Error("Failed to initialize database", "error", err)
+		os.Exit(1)
 	}
 
-	log.Println("Transaction service starting...")
+	slog.Info("Transaction service starting...")
 
 	// Get port from environment or use default
 	port := os.Getenv("PORT")
@@ -28,9 +32,10 @@ func main() {
 
 	// Start server
 	addr := ":" + port
-	log.Printf("Transaction service listening on %s", addr)
+	slog.Info("Transaction service listening on", "addr", addr)
 
 	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+		slog.Error("Server failed to start", "error", err)
+		os.Exit(1)
 	}
 }

@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -17,7 +17,7 @@ import (
 func HandlerCardPurchase(w http.ResponseWriter, r *http.Request) {
 	var req models.PurchaseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Failed to decode purchase request: %v", err)
+		slog.Warn("Failed to decode purchase request", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -46,7 +46,7 @@ func HandlerCardPurchase(w http.ResponseWriter, r *http.Request) {
 	// Get card information
 	card, err := utils.GetVirtualCard(req.CardID)
 	if err != nil {
-		log.Printf("Failed to get card: %v", err)
+		slog.Error("Failed to get card", "error", err)
 		http.Error(w, "Card not found", http.StatusNotFound)
 		return
 	}
@@ -54,7 +54,7 @@ func HandlerCardPurchase(w http.ResponseWriter, r *http.Request) {
 	// Get wallet information
 	wallet, err := utils.GetWallet(card.WalletID)
 	if err != nil {
-		log.Printf("Failed to get wallet: %v", err)
+		slog.Error("Failed to get wallet", "error", err)
 		http.Error(w, "Wallet not found", http.StatusNotFound)
 		return
 	}
@@ -164,7 +164,7 @@ func HandlerCardPurchase(w http.ResponseWriter, r *http.Request) {
 
 	// Save transaction to database
 	if err := db.CreateTransaction(transaction); err != nil {
-		log.Printf("Failed to create transaction: %v", err)
+		slog.Error("Failed to create transaction", "error", err)
 		http.Error(w, "Failed to create transaction", http.StatusInternalServerError)
 		return
 	}
@@ -196,7 +196,7 @@ func HandlerCardPurchase(w http.ResponseWriter, r *http.Request) {
 	transaction.UpdatedAt = completedTime
 
 	if err := db.UpdateTransaction(transaction); err != nil {
-		log.Printf("Failed to update transaction status: %v", err)
+		slog.Error("Failed to update transaction status", "error", err)
 	}
 
 	// Publish transaction completed event

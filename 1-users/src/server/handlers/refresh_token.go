@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -82,7 +82,7 @@ func HandlerRefreshToken(w http.ResponseWriter, r *http.Request) {
 				session.Token = newRefreshToken
 				session.LastLoginAt = time.Now()
 				if err := db.AddSession(session); err != nil {
-					log.Printf("Failed to update session %s after token rotation: %v", session.ID, err)
+					slog.Error("Failed to update session after token rotation", "sessionId", session.ID, "error", err)
 				}
 				break
 			}

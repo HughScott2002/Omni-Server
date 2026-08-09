@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -779,7 +779,7 @@ func Init() error {
 			DB:       0,
 		})
 		db = &RedisDB{client: redisClient}
-		log.Println("USING DB & REDIS IN USER SERIVCE")
+		slog.Info("USING DB & REDIS IN USER SERIVCE")
 	case env == "local" && mode == "db":
 		// Placeholder for future database implementation
 		db = &FutureDB{}

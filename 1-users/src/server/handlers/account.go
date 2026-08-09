@@ -2,9 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -159,13 +158,13 @@ func HandlerDeleteUserAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := producer.ProduceAccountDeletionRequestedEvent(event); err != nil {
-		log.Printf("Failed to produce account deletion event: %v", err)
+		slog.Error("Failed to produce account deletion event", "error", err)
 		// Continue execution - event failure shouldn't block account disable
 	}
 
 	// Invalidate all sessions
 	if err := db.DeleteUserSessions(user.Email); err != nil {
-		log.Printf("Failed to delete user sessions: %v", err)
+		slog.Error("Failed to delete user sessions", "error", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -180,7 +179,7 @@ func HandlerChangePassword(w http.ResponseWriter, r *http.Request) {
 	// Get device information
 	deviceInfo := r.Header.Get("User-Agent")
 
-	fmt.Printf("%s", deviceInfo)
+	slog.Debug("Password change requested", "deviceInfo", deviceInfo)
 
 	// Read request body
 	body, err := io.ReadAll(r.Body)
@@ -253,7 +252,7 @@ func HandlerChangePassword(w http.ResponseWriter, r *http.Request) {
 	// Invalidate all refresh tokens for this user
 	err = db.DeleteUserSessions(passwordChangeReq.Email)
 	if err != nil {
-		log.Printf("Error deleting user sessions: %v", err)
+		slog.Error("Error deleting user sessions", "error", err)
 	}
 
 	// TODO: Produce password changed event

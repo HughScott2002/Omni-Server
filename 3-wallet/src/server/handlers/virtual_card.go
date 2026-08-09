@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -69,7 +69,7 @@ func HandlerCreateVirtualCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.CreateVirtualCard(card); err != nil {
-		log.Printf("Failed to create virtual card: %v", err)
+		slog.Error("Failed to create virtual card", "error", err)
 		http.Error(w, "Failed to create virtual card", http.StatusInternalServerError)
 		return
 	}
@@ -85,7 +85,7 @@ func HandlerCreateVirtualCard(w http.ResponseWriter, r *http.Request) {
 		Timestamp:      time.Now(),
 	}
 	if err := producer.ProduceVirtualCardCreatedEvent(event); err != nil {
-		log.Printf("Failed to publish virtual card created event: %v", err)
+		slog.Error("Failed to publish virtual card created event", "error", err)
 	}
 
 	// Return response with CVV (only time CVV is returned)
@@ -99,7 +99,7 @@ func HandlerCreateVirtualCard(w http.ResponseWriter, r *http.Request) {
 
 	// Add to account's card list
 	if wallet.AccountId != "" {
-		log.Printf("Virtual card %s created for account %s", card.ID, wallet.AccountId)
+		slog.Info("Virtual card created for account", "cardId", card.ID, "accountId", wallet.AccountId)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -118,7 +118,7 @@ func HandlerGetVirtualCard(w http.ResponseWriter, r *http.Request) {
 			cardID = ctx.URLParam("cardid")
 		}
 	}
-	log.Printf("GetVirtualCard - URL: %s, cardID from param: '%s', all params: %v", r.URL.Path, cardID, chi.RouteContext(r.Context()))
+	slog.Info("GetVirtualCard - URL, cardID from param: '', all params", "path", r.URL.Path, "cardId", cardID, "routeContext", chi.RouteContext(r.Context()))
 	if cardID == "" {
 		http.Error(w, "Card ID is required", http.StatusBadRequest)
 		return
@@ -147,7 +147,7 @@ func HandlerGetVirtualCardsByAccount(w http.ResponseWriter, r *http.Request) {
 			accountID = ctx.URLParam("accountid")
 		}
 	}
-	log.Printf("GetVirtualCardsByAccount - URL: %s, accountID from param: '%s', RouteContext: %v", r.URL.Path, accountID, chi.RouteContext(r.Context()))
+	slog.Info("GetVirtualCardsByAccount - URL, accountID from param: '', RouteContext", "path", r.URL.Path, "accountId", accountID, "routeContext", chi.RouteContext(r.Context()))
 	if accountID == "" {
 		http.Error(w, "Account ID is required", http.StatusBadRequest)
 		return
@@ -265,7 +265,7 @@ func HandlerBlockVirtualCard(w http.ResponseWriter, r *http.Request) {
 		Timestamp:   time.Now(),
 	}
 	if err := producer.ProduceVirtualCardBlockedEvent(event); err != nil {
-		log.Printf("Failed to publish virtual card blocked event: %v", err)
+		slog.Error("Failed to publish virtual card blocked event", "error", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -311,7 +311,7 @@ func HandlerTopUpVirtualCard(w http.ResponseWriter, r *http.Request) {
 			Timestamp:  time.Now(),
 		}
 		if err := producer.ProduceVirtualCardToppedUpEvent(event); err != nil {
-			log.Printf("Failed to publish virtual card topped up event: %v", err)
+			slog.Error("Failed to publish virtual card topped up event", "error", err)
 		}
 	}
 
@@ -368,7 +368,7 @@ func HandlerRequestPhysicalCard(w http.ResponseWriter, r *http.Request) {
 		Timestamp:       time.Now(),
 	}
 	if err := producer.ProducePhysicalCardRequestedEvent(event); err != nil {
-		log.Printf("Failed to publish physical card requested event: %v", err)
+		slog.Error("Failed to publish physical card requested event", "error", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -414,7 +414,7 @@ func HandlerDeleteVirtualCard(w http.ResponseWriter, r *http.Request) {
 		Timestamp:      time.Now(),
 	}
 	if err := producer.ProduceVirtualCardDeletedEvent(event); err != nil {
-		log.Printf("Failed to publish virtual card deleted event: %v", err)
+		slog.Error("Failed to publish virtual card deleted event", "error", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
