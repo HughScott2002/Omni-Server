@@ -1,4 +1,7 @@
-# Omni-Server
+<div align="center">
+  <img src="docs/omni-logo.svg" width="72" alt="Omni logo" />
+  <h1>Omni Server</h1>
+</div>
 
 **Microservices backend for the Omni digital-payments demo.** Go services for users, wallets, transactions and fraud scoring, a FastAPI notification service with WebSocket push, Kafka for domain events, one nginx gateway in front. Pairs with [Omni-UI](https://github.com/HughScott2002/Omni-UI).
 
@@ -13,13 +16,16 @@
 ## Quick start
 
 ```bash
-make build     # build + start the full stack (uses .env.example)
-make seed      # demo user + 6 months of transaction history
+make build     # build, start, and seed the full stack (uses .env.example)
 ```
+
+That's the whole setup. It brings the services up, waits for the gateway, then creates a demo account with an approved KYC status, funded wallets, a virtual card, and six months of transaction history.
 
 Log in from Omni-UI with **demo@omni.dev / DemoPass123!**
 
-> Storage is **in-memory by design** (`MODE=memcached`) — it keeps iteration fast while the services are still taking shape. Data resets on every `make down`/`restart`; re-run `make seed` afterward. A persistent database lands later — the Redis-backed `MODE=db` groundwork exists but isn't finished (#10).
+There is no default account baked into the services. That login exists only because `make build` seeded it. Storage is **in-memory by design** (`MODE=memcached`), which keeps iteration fast while the services are still taking shape, so the demo data dies with the containers. `make build` and `make restart` both reseed, so you rarely need to think about it. `make seed` seeds a stack that's already running and is safe to re-run: it detects existing demo history and leaves it alone rather than stacking a second six months onto the same balance. For a genuinely clean slate, use `make restart`. If a login ever returns `404 User doesn't exist`, the containers were recreated without a reseed, and `make seed` fixes it. A persistent database lands later; the Redis-backed `MODE=db` groundwork exists but isn't finished (#10).
+
+Working on the services themselves rather than just running them? `nix develop` drops you into a shell with Go, Python + poetry, the linters, and `redis-cli`/`kcat` already on `PATH`.
 
 ## Architecture
 
@@ -40,9 +46,9 @@ Kafka: account-created · kyc-approved · contact-* · virtual-card-* · account
 
 | Command | What it does |
 | --- | --- |
-| `make build` | Build and start the stack |
-| `make seed` | Seed demo users, wallets, and history |
-| `make down` / `make restart` | Stop / rebuild (remember to reseed) |
+| `make build` | Build, start, and seed the stack |
+| `make seed` | Seed a running stack (no-op if already seeded) |
+| `make down` / `make restart` | Stop / rebuild (`restart` reseeds) |
 | `make logs` / `make ps` | Follow logs / list services |
 | `make test` | Smoke-check the running stack |
 | `make swarm-*` | Local Docker Swarm variant |
