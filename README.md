@@ -53,9 +53,11 @@ Works today: auth + sessions, contacts/OmniTag, consent-gated KYC with wallet ac
 
 Known gaps (tracked in issues): persistent storage (#10), auth enforcement across services (#12, #17), real verification pipeline (#16), health endpoints + chaos targets (#11), tests + CI beyond user-service (#6).
 
+The bounded portfolio finish line, release blockers, non-goals, and proof-of-done are in [`PORTFOLIO_SCOPE.md`](PORTFOLIO_SCOPE.md). Until that checklist passes, treat the repository as a local experimental demo rather than a completed banking system.
+
 ## Docs
 
-[`4-transactions/TRANSACTIONS_API.md`](4-transactions/TRANSACTIONS_API.md) · [`3-wallet/WALLET_API.md`](3-wallet/WALLET_API.md) · [`5-fraud-detection/FRAUD_DETECTION_RULES.md`](5-fraud-detection/FRAUD_DETECTION_RULES.md) · [`docker-swarm/README.md`](docker-swarm/README.md)
+[`PORTFOLIO_SCOPE.md`](PORTFOLIO_SCOPE.md) · [`4-transactions/TRANSACTIONS_API.md`](4-transactions/TRANSACTIONS_API.md) · [`3-wallet/WALLET_API.md`](3-wallet/WALLET_API.md) · [`5-fraud-detection/FRAUD_DETECTION_RULES.md`](5-fraud-detection/FRAUD_DETECTION_RULES.md) · [`docker-swarm/README.md`](docker-swarm/README.md)
 
 ## License
 
